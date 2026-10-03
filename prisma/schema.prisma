@@ -1,0 +1,123 @@
+// AssetPulse Unified Prisma Schema
+// Compatible with both SQLite and MySQL via scripts/db-prep.js
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite" // Synchronized dynamically by scripts/db-prep.js ("sqlite" | "mysql")
+  url      = env("DATABASE_URL")
+}
+
+// -------------------------------------------------------------
+// 1. User Model
+// -------------------------------------------------------------
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  password      String         // bcrypt hashed password
+  name          String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  // Multi-Tenant Relations
+  deposits      FixedDeposit[]
+  auditLogs     AuditLog[]
+  notifications Notification[]
+
+  @@map("users")
+}
+
+// -------------------------------------------------------------
+// 2. FixedDeposit Model
+// -------------------------------------------------------------
+model FixedDeposit {
+  id                   String         @id @default(uuid())
+  userId               String
+  bankName             String
+  accountNumber        String
+  principalAmount      Float
+  annualRate           Float          // Annual interest percentage (e.g. 7.25 for 7.25%)
+  compoundingFrequency String         // 'MONTHLY' | 'QUARTERLY' | 'SEMI_ANNUALLY' | 'ANNUALLY' | 'AT_MATURITY'
+  startDate            DateTime
+  maturityDate         DateTime
+  maturityAmount       Float          // Precalculated maturity amount
+  totalInterestEarned  Float          // Precalculated total interest earned (maturityAmount - principalAmount)
+  status               String         @default("ACTIVE") // 'ACTIVE' | 'MATURED' | 'CLOSED' | 'LIQUIDATED'
+  isAutoRenew          Boolean        @default(false)
+  notes                String?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  // Foreign Key Relations
+  user                 User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  auditLogs            AuditLog[]
+  notifications        Notification[]
+
+  // Performance & Multi-Tenant Indexes
+  @@index([userId])
+  @@index([status])
+  @@index([maturityDate])
+  @@index([bankName])
+  @@map("fixed_deposits")
+}
+
+// -------------------------------------------------------------
+// 3. AuditLog Model (Immutable Financial Ledger)
+// -------------------------------------------------------------
+model AuditLog {
+  id                 String        @id @default(uuid())
+  userId             String
+  depositId          String?
+  action             String        // 'CREATED' | 'UPDATED' | 'CLOSED' | 'LIQUIDATED' | 'DELETED'
+  bankName           String
+  accountNumber      String
+  principalAmount    Float
+  realizedInterest   Float?
+  penaltyAmount      Float?
+  dispositionType    String?       // 'MATURED_REINVESTED' | 'TRANSFERRED_SAVINGS' | 'PREMATURE_WITHDRAWAL' | 'OTHER'
+  destinationAccount String?
+  notes              String?
+  snapshotData       String        // Serialized JSON string of deposit snapshot at time of event
+  createdAt          DateTime      @default(now())
+
+  // Foreign Key Relations
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deposit            FixedDeposit? @relation(fields: [depositId], references: [id], onDelete: SetNull)
+
+  // Filtering & Query Indexes
+  @@index([userId])
+  @@index([depositId])
+  @@index([action])
+  @@index([createdAt])
+  @@index([bankName])
+  @@map("audit_logs")
+}
+
+// -------------------------------------------------------------
+// 4. Notification Model
+// -------------------------------------------------------------
+model Notification {
+  id        String        @id @default(uuid())
+  userId    String
+  depositId String?
+  type      String        // 'MATURED_TODAY' | 'MATURING_7_DAYS' | 'MATURING_14_DAYS' | 'MATURING_30_DAYS' | 'SYSTEM'
+  severity  String        @default("info") // 'critical' | 'warning' | 'info'
+  title     String
+  message   String
+  isRead    Boolean       @default(false)
+  createdAt DateTime      @default(now())
+  readAt    DateTime?
+
+  // Foreign Key Relations
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deposit   FixedDeposit? @relation(fields: [depositId], references: [id], onDelete: Cascade)
+
+  // Query & Deduplication Indexes
+  @@index([userId])
+  @@index([userId, isRead])
+  @@index([depositId, type])
+  @@index([createdAt])
+  @@map("notifications")
+}

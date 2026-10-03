@@ -1,0 +1,64 @@
+{
+  "name": "assetpulse",
+  "version": "1.0.0",
+  "description": "Open-source, lightweight personal financial asset and Fixed Deposit tracking application",
+  "license": "MIT",
+  "private": true,
+  "author": "AssetPulse Contributors",
+  "keywords": [
+    "assetpulse",
+    "finance",
+    "fixed-deposits",
+    "portfolio-tracker",
+    "sqlite",
+    "mysql",
+    "nextjs",
+    "typescript"
+  ],
+  "scripts": {
+    "dev": "npm run db:prep && next dev",
+    "build": "npm run db:prep && next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:prep": "node scripts/db-prep.js",
+    "db:generate": "npx prisma generate",
+    "db:push": "node scripts/db-prep.js --push",
+    "db:seed": "tsx prisma/seed.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.21.1",
+    "bcryptjs": "^2.4.3",
+    "clsx": "^2.1.1",
+    "dotenv": "^16.4.5",
+    "jose": "^5.9.6",
+    "lucide-react": "^0.454.0",
+    "next": "^14.2.15",
+    "next-themes": "^0.3.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^2.5.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/forms": "^0.5.9",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20.17.6",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.15",
+    "jsdom": "^25.0.1",
+    "postcss": "^8.4.47",
+    "prisma": "^5.21.1",
+    "tailwindcss": "^3.4.14",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.3"
+  }
+}
