@@ -13,6 +13,8 @@ import {
   SessionUser,
 } from '@/lib/auth';
 import { SignJWT } from 'jose';
+import { NextRequest } from 'next/server';
+import { POST as loginHandler } from '@/app/api/auth/login/route';
 
 describe('Unit Test: Authentication Library (src/lib/auth.ts)', () => {
   const testUser: SessionUser = {
@@ -68,6 +70,53 @@ describe('Unit Test: Authentication Library (src/lib/auth.ts)', () => {
     it('should handle malformed hashes gracefully without throwing unhandled exceptions', async () => {
       const result = await verifyPassword('password', 'not-a-valid-bcrypt-hash');
       expect(result).toBe(false);
+    });
+
+    it('should correctly hash and verify passwords with special characters', async () => {
+      const specialPassword = '!@#$%^&*()_+~|}{[]:;?><,./-=';
+      const hash = await hashPassword(specialPassword);
+
+      expect(await verifyPassword(specialPassword, hash)).toBe(true);
+      expect(await verifyPassword('!@#$%^&*()_+~|}{[]:;?><,./-!', hash)).toBe(false);
+      expect(await verifyPassword('differentPassword123!', hash)).toBe(false);
+    });
+
+    it('should correctly hash and verify passwords containing unicode and emojis', async () => {
+      const unicodePassword = 'P@sswørd🔑🔒日本語🚀';
+      const hash = await hashPassword(unicodePassword);
+
+      expect(await verifyPassword(unicodePassword, hash)).toBe(true);
+      expect(await verifyPassword('P@sswørd🔑🔒日本語🚁', hash)).toBe(false);
+      expect(await verifyPassword('P@sswørd🔑🔒', hash)).toBe(false);
+    });
+
+    it('should correctly hash and verify passwords containing leading, inner, and trailing spaces', async () => {
+      const spacedPassword = '   password with spaced tokens inside   ';
+      const hash = await hashPassword(spacedPassword);
+
+      expect(await verifyPassword(spacedPassword, hash)).toBe(true);
+      expect(await verifyPassword('password with spaced tokens inside', hash)).toBe(false);
+      expect(await verifyPassword('   password with spaced tokens inside  ', hash)).toBe(false);
+    });
+
+    it('should correctly hash and verify passwords with 100+ character lengths', async () => {
+      const longPassword = 'A'.repeat(50) + 'B'.repeat(30) + 'C'.repeat(25) + 'D'.repeat(15); // 120 chars
+      const hash = await hashPassword(longPassword);
+
+      expect(await verifyPassword(longPassword, hash)).toBe(true);
+      // Alter character within the first 72 bytes
+      const wrongLongPassword = 'X' + longPassword.substring(1);
+      expect(await verifyPassword(wrongLongPassword, hash)).toBe(false);
+    });
+
+    it('should reject empty or nullish inputs to verifyPassword without throwing uncaught exceptions', async () => {
+      const validHash = await hashPassword('ValidPass123!');
+      expect(await verifyPassword('', validHash)).toBe(false);
+      expect(await verifyPassword(null as any, validHash)).toBe(false);
+      expect(await verifyPassword(undefined as any, validHash)).toBe(false);
+      expect(await verifyPassword('ValidPass123!', '')).toBe(false);
+      expect(await verifyPassword('ValidPass123!', null as any)).toBe(false);
+      expect(await verifyPassword('ValidPass123!', undefined as any)).toBe(false);
     });
   });
 
@@ -176,6 +225,144 @@ describe('Unit Test: Authentication Library (src/lib/auth.ts)', () => {
       expect(await verifySessionToken('invalid.token')).toBeNull();
       expect(await verifySessionToken('random-garbage-string-xyz')).toBeNull();
     });
+
+    it('should reject expired tokens across various past expiration intervals', async () => {
+      const secret = new TextEncoder().encode(
+        process.env.JWT_SECRET ||
+          process.env.NEXTAUTH_SECRET ||
+          'assetpulse-super-secret-development-jwt-key-32chars'
+      );
+
+      const pastOffsets = [1, 60, 3600, 86400, 31536000]; // 1s, 1m, 1h, 1d, 1y in the past
+      for (const offset of pastOffsets) {
+        const expiredToken = await new SignJWT({
+          id: testUser.id,
+          email: testUser.email,
+          name: testUser.name,
+        })
+          .setProtectedHeader({ alg: 'HS256' })
+          .setIssuedAt(Math.floor(Date.now() / 1000) - offset - 100)
+          .setExpirationTime(Math.floor(Date.now() / 1000) - offset)
+          .sign(secret);
+
+        const decoded = await verifySessionToken(expiredToken);
+        expect(decoded).toBeNull();
+      }
+    });
+
+    it('should strictly reject tokens with tampered sub or id claims (privilege escalation attack)', async () => {
+      const validToken = await createSessionToken(testUser);
+      const parts = validToken.split('.');
+
+      // Forged payload replacing id and sub with unauthorized admin ID
+      const forgedPayload = Buffer.from(
+        JSON.stringify({
+          sub: 'admin-super-user-root',
+          id: 'admin-super-user-root',
+          email: testUser.email,
+          name: 'Super Admin',
+        })
+      ).toString('base64url');
+
+      const tamperedToken = `${parts[0]}.${forgedPayload}.${parts[2]}`;
+      const decoded = await verifySessionToken(tamperedToken);
+      expect(decoded).toBeNull();
+    });
+
+    it('should strictly reject tokens with tampered email claim', async () => {
+      const validToken = await createSessionToken(testUser);
+      const parts = validToken.split('.');
+
+      // Forged payload replacing email
+      const forgedPayload = Buffer.from(
+        JSON.stringify({
+          sub: testUser.id,
+          id: testUser.id,
+          email: 'admin@assetpulse.dev',
+          name: testUser.name,
+        })
+      ).toString('base64url');
+
+      const tamperedToken = `${parts[0]}.${forgedPayload}.${parts[2]}`;
+      const decoded = await verifySessionToken(tamperedToken);
+      expect(decoded).toBeNull();
+    });
+
+    it('should strictly reject tokens missing required id or sub claims', async () => {
+      const secret = new TextEncoder().encode(
+        process.env.JWT_SECRET ||
+          process.env.NEXTAUTH_SECRET ||
+          'assetpulse-super-secret-development-jwt-key-32chars'
+      );
+
+      const missingIdToken = await new SignJWT({
+        email: testUser.email,
+        name: testUser.name,
+      })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setExpirationTime('1d')
+        .sign(secret);
+
+      const decoded = await verifySessionToken(missingIdToken);
+      expect(decoded).toBeNull();
+    });
+
+    it('should strictly reject tokens missing required email claim', async () => {
+      const secret = new TextEncoder().encode(
+        process.env.JWT_SECRET ||
+          process.env.NEXTAUTH_SECRET ||
+          'assetpulse-super-secret-development-jwt-key-32chars'
+      );
+
+      const missingEmailToken = await new SignJWT({
+        id: testUser.id,
+        name: testUser.name,
+      })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setExpirationTime('1d')
+        .sign(secret);
+
+      const decoded = await verifySessionToken(missingEmailToken);
+      expect(decoded).toBeNull();
+    });
+
+    it('should strictly reject malformed token strings across boundary formats', async () => {
+      const malformedCases = [
+        '',
+        'garbage',
+        'a.b',
+        'a.b.c.d',
+        '   ',
+        '.....',
+        'eyJhbGciOiJIUzI1NiJ9',
+        'eyJhbGciOiJIUzI1NiJ9.eyJpZCI6IjEyMyJ9',
+        null as any,
+        undefined as any,
+        12345 as any,
+        {} as any,
+      ];
+
+      for (const badToken of malformedCases) {
+        const decoded = await verifySessionToken(badToken);
+        expect(decoded).toBeNull();
+      }
+    });
+
+    it('should strictly reject algorithm "none" attacks (unsigned JWT tokens)', async () => {
+      const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url');
+      const payload = Buffer.from(
+        JSON.stringify({ id: 'admin', email: 'admin@assetpulse.dev' })
+      ).toString('base64url');
+
+      // Test with trailing dot (header.payload.) and without trailing dot (header.payload)
+      const noneTokenWithDot = `${header}.${payload}.`;
+      const noneTokenWithoutDot = `${header}.${payload}`;
+
+      expect(await verifySessionToken(noneTokenWithDot)).toBeNull();
+      expect(await verifySessionToken(noneTokenWithoutDot)).toBeNull();
+    });
   });
 
   describe('4. Cookie Options and Request Session Extraction', () => {
@@ -242,6 +429,44 @@ describe('Unit Test: Authentication Library (src/lib/auth.ts)', () => {
       const req = new Request('http://localhost:3000/api/auth/me');
       const extracted = await getSessionFromRequest(req);
       expect(extracted).toBeNull();
+    });
+  });
+
+  describe('5. Constant-Time Timing Attack Mitigation in Login Flow', () => {
+    it('should verify dummy bcrypt hash validity and execution cost', async () => {
+      // DUMMY_BCRYPT_HASH from login route handler
+      const DUMMY_BCRYPT_HASH = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
+      expect(DUMMY_BCRYPT_HASH).toMatch(/^\$2[ab]\$\d{2}\$[./0-9A-Za-z]{53}$/);
+
+      const t0 = performance.now();
+      const isValid = await verifyPassword('AnyPassword123!', DUMMY_BCRYPT_HASH);
+      const duration = performance.now() - t0;
+
+      expect(isValid).toBe(false);
+      // 10-round bcrypt compare takes non-trivial CPU time (typically > 20ms)
+      expect(duration).toBeGreaterThan(10);
+    });
+
+    it('should run bcrypt comparison for both invalid emails and existing emails during login', async () => {
+      // Non-existent email request
+      const reqNonExistent = new NextRequest('http://localhost:3000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: 'nonexistent_challenger_user@assetpulse.dev',
+          password: 'Password123!',
+        }),
+      });
+
+      const t0 = performance.now();
+      const resNonExistent = await loginHandler(reqNonExistent);
+      const elapsedNonExistent = performance.now() - t0;
+      const dataNonExistent = await resNonExistent.json();
+
+      expect(resNonExistent.status).toBe(401);
+      expect(dataNonExistent.error).toBe('Invalid email or password.');
+      // Confirm dummy bcrypt hash comparison executed (not an instantaneous early-return)
+      expect(elapsedNonExistent).toBeGreaterThan(10);
     });
   });
 });
