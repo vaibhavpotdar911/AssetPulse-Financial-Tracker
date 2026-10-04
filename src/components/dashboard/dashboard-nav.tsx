@@ -13,6 +13,8 @@ import {
   LogOut,
   Menu,
   X,
+  Coins,
+  Sliders,
 } from 'lucide-react';
 
 export function DashboardNav() {
@@ -33,6 +35,7 @@ export function DashboardNav() {
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/deposits', label: 'Fixed Deposits', icon: Shield },
     { href: '/audit-logs', label: 'Audit Ledger', icon: History },
+    { href: '/settings', label: 'Settings', icon: Sliders },
   ];
 
   return (
@@ -62,7 +65,15 @@ export function DashboardNav() {
           </nav>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
+          <Link
+            href="/settings"
+            title="Adjust Currency and Preferences"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:border-brand-emerald-500/50 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+          >
+            <Coins className="h-3.5 w-3.5 text-brand-emerald-600 dark:text-brand-emerald-400" />
+            <span className="hidden sm:inline">Settings</span>
+          </Link>
           <NotificationCenter />
           <ThemeToggle />
           <button

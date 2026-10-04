@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { DashboardNav } from '@/components/dashboard/dashboard-nav';
 import { DiffInspector } from '@/components/audit/diff-inspector';
+import { Select } from '@/components/ui/select';
+import { useCurrency } from '@/components/providers/currency-provider';
 import {
   History,
   ShieldCheck,
@@ -12,7 +14,17 @@ import {
   Loader2,
 } from 'lucide-react';
 
+const ACTION_FILTER_OPTIONS = [
+  { value: 'ALL', label: 'All Actions' },
+  { value: 'CREATED', label: 'CREATED (Certificate Issued)' },
+  { value: 'UPDATED', label: 'UPDATED (Terms Modified)' },
+  { value: 'CLOSED', label: 'CLOSED (Tenure Completed)' },
+  { value: 'LIQUIDATED', label: 'LIQUIDATED (Early Exit)' },
+  { value: 'DELETED', label: 'DELETED' },
+];
+
 export default function AuditLogsPage() {
+  const { formatAmount } = useCurrency();
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionFilter, setActionFilter] = useState('ALL');
@@ -104,18 +116,15 @@ export default function AuditLogsPage() {
 
           <div className="flex flex-wrap items-center gap-3">
             {/* Action Filter */}
-            <select
-              value={actionFilter}
-              onChange={(e) => setActionFilter(e.target.value)}
-              className="px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-emerald-500 focus:outline-none"
-            >
-              <option value="ALL">All Actions</option>
-              <option value="CREATED">CREATED</option>
-              <option value="UPDATED">UPDATED</option>
-              <option value="CLOSED">CLOSED</option>
-              <option value="LIQUIDATED">LIQUIDATED</option>
-              <option value="DELETED">DELETED</option>
-            </select>
+            <div className="min-w-[180px]">
+              <Select
+                value={actionFilter}
+                onChange={setActionFilter}
+                options={ACTION_FILTER_OPTIONS}
+                size="sm"
+                placeholder="All Actions"
+              />
+            </div>
 
             {/* Date Range */}
             <div className="flex items-center gap-1.5">
@@ -215,13 +224,13 @@ export default function AuditLogsPage() {
                           </td>
 
                           <td className="py-3.5 px-4 font-mono font-semibold text-slate-900 dark:text-white">
-                            ${log.principalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            {formatAmount(log.principalAmount)}
                           </td>
 
                           <td className="py-3.5 px-4 font-mono">
                             {log.realizedInterest !== null && log.realizedInterest !== undefined ? (
                               <span className="text-brand-emerald-600 dark:text-brand-emerald-400 font-semibold">
-                                +${Number(log.realizedInterest).toFixed(2)}
+                                +{formatAmount(Number(log.realizedInterest))}
                               </span>
                             ) : (
                               <span className="text-slate-400">—</span>

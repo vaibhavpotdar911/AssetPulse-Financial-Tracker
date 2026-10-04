@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useCurrency } from '@/components/providers/currency-provider';
 import {
   Bell,
   Check,
@@ -109,6 +110,7 @@ function getThresholdBadge(type: string, severity: string) {
 
 export function NotificationCenter() {
   const router = useRouter();
+  const { formatAmount } = useCurrency();
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
@@ -398,7 +400,7 @@ export function NotificationCenter() {
                             {n.deposit.accountNumber}
                           </span>
                           <span>
-                            Payout: ${Number(n.deposit.maturityAmount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            Payout: {formatAmount(Number(n.deposit.maturityAmount))}
                           </span>
                         </div>
                       )}
