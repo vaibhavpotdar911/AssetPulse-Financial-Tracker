@@ -3,6 +3,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { calculateFixedDeposit, CompoundingFrequency } from '@/lib/financial';
 import { X, Sparkles, AlertCircle, Loader2 } from 'lucide-react';
+import { InstitutionSelect } from '@/components/ui/institution-select';
+import { Select, SelectOption } from '@/components/ui/select';
+import { useCurrency } from '@/components/providers/currency-provider';
 
 interface DepositModalProps {
   isOpen: boolean;
@@ -11,8 +14,17 @@ interface DepositModalProps {
   deposit?: any; // If provided, edit mode
 }
 
+const COMPOUNDING_OPTIONS: SelectOption[] = [
+  { value: 'MONTHLY', label: 'Monthly Compounding (n=12)', description: 'Interest compounded every month' },
+  { value: 'QUARTERLY', label: 'Quarterly Compounding (n=4)', description: 'Standard Indian bank fixed deposit frequency' },
+  { value: 'SEMI_ANNUALLY', label: 'Semi-Annually (n=2)', description: 'Interest compounded every 6 months' },
+  { value: 'ANNUALLY', label: 'Annually (n=1)', description: 'Interest compounded once per year' },
+  { value: 'AT_MATURITY', label: 'At Maturity (Simple Interest)', description: 'Cumulative payout upon maturity date' },
+];
+
 export function DepositModal({ isOpen, onClose, onSuccess, deposit }: DepositModalProps) {
   const isEdit = Boolean(deposit);
+  const { symbol, formatAmount } = useCurrency();
 
   const [bankName, setBankName] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
@@ -143,7 +155,7 @@ export function DepositModal({ isOpen, onClose, onSuccess, deposit }: DepositMod
           {isEdit ? 'Edit Fixed Deposit' : 'Add New Fixed Deposit'}
         </h2>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">
-          Enter deposit certificate parameters with real-time compound interest preview.
+          Select your bank or financial institution and configure certificate terms with live compound calculations.
         </p>
 
         {error && (
@@ -156,22 +168,17 @@ export function DepositModal({ isOpen, onClose, onSuccess, deposit }: DepositMod
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Bank / Financial Institution *
-              </label>
-              <input
-                type="text"
-                required
+              <InstitutionSelect
                 value={bankName}
-                onChange={(e) => setBankName(e.target.value)}
-                placeholder="e.g. JPMorgan Chase, HDFC"
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-emerald-500 focus:outline-none"
+                onChange={setBankName}
+                required
+                label="Bank / Financial Institution"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Account / Certificate Number *
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                Account / Certificate Number <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
@@ -179,30 +186,35 @@ export function DepositModal({ isOpen, onClose, onSuccess, deposit }: DepositMod
                 value={accountNumber}
                 onChange={(e) => setAccountNumber(e.target.value)}
                 placeholder="e.g. FD-2026-9081"
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-emerald-500 focus:outline-none"
+                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-emerald-500/30 focus:border-brand-emerald-500 focus:outline-none"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Principal Amount ($) *
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                Principal Amount ({symbol}) <span className="text-rose-500">*</span>
               </label>
-              <input
-                type="number"
-                required
-                min="1"
-                step="any"
-                value={principal}
-                onChange={(e) => setPrincipal(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-emerald-500 focus:outline-none font-mono"
-              />
+              <div className="relative">
+                <span className="absolute left-3 top-2 text-sm font-semibold text-slate-400 font-mono">
+                  {symbol}
+                </span>
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  step="any"
+                  value={principal}
+                  onChange={(e) => setPrincipal(e.target.value)}
+                  className="w-full pl-8 pr-3 py-2 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-emerald-500/30 focus:border-brand-emerald-500 focus:outline-none font-mono"
+                />
+              </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Annual Rate (%) *
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                Annual Rate (%) <span className="text-rose-500">*</span>
               </label>
               <input
                 type="number"
@@ -211,25 +223,18 @@ export function DepositModal({ isOpen, onClose, onSuccess, deposit }: DepositMod
                 step="0.01"
                 value={annualRate}
                 onChange={(e) => setAnnualRate(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-emerald-500 focus:outline-none font-mono"
+                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-emerald-500/30 focus:border-brand-emerald-500 focus:outline-none font-mono"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Compounding Frequency *
-              </label>
-              <select
+              <Select
                 value={compoundingFrequency}
-                onChange={(e) => setCompoundingFrequency(e.target.value as CompoundingFrequency)}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-emerald-500 focus:outline-none"
-              >
-                <option value="MONTHLY">Monthly (n=12)</option>
-                <option value="QUARTERLY">Quarterly (n=4)</option>
-                <option value="SEMI_ANNUALLY">Semi-Annually (n=2)</option>
-                <option value="ANNUALLY">Annually (n=1)</option>
-                <option value="AT_MATURITY">At Maturity (Simple)</option>
-              </select>
+                onChange={(val) => setCompoundingFrequency(val as CompoundingFrequency)}
+                options={COMPOUNDING_OPTIONS}
+                label="Compounding Frequency"
+                placeholder="Select frequency"
+              />
             </div>
           </div>
 
@@ -272,19 +277,19 @@ export function DepositModal({ isOpen, onClose, onSuccess, deposit }: DepositMod
                 <div>
                   <span className="text-slate-500 dark:text-slate-400 block">Est. Maturity Amount</span>
                   <span className="font-bold text-sm text-brand-emerald-600 dark:text-brand-emerald-400 font-mono">
-                    ${calculationPreview.maturityAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    {formatAmount(calculationPreview.maturityAmount)}
                   </span>
                 </div>
                 <div>
                   <span className="text-slate-500 dark:text-slate-400 block">Total Interest</span>
                   <span className="font-semibold text-sm text-slate-800 dark:text-slate-200 font-mono">
-                    +${calculationPreview.totalInterestEarned.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    +{formatAmount(calculationPreview.totalInterestEarned)}
                   </span>
                 </div>
                 <div>
                   <span className="text-slate-500 dark:text-slate-400 block">Accrued to Date</span>
                   <span className="font-semibold text-sm text-indigo-600 dark:text-indigo-400 font-mono">
-                    +${calculationPreview.accruedInterest.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    +{formatAmount(calculationPreview.accruedInterest)}
                   </span>
                 </div>
                 <div>

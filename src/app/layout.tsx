@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { ThemeProvider } from '@/components/providers/theme-provider';
+import { CurrencyProvider } from '@/components/providers/currency-provider';
 
 export const metadata: Metadata = {
   title: 'AssetPulse | Personal Financial Asset & Fixed Deposit Tracker',
@@ -26,7 +27,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <CurrencyProvider>
+            {children}
+          </CurrencyProvider>
         </ThemeProvider>
       </body>
     </html>
