@@ -19,7 +19,7 @@
    - [Diagram 2: Dual-Database Synchronization Engine](#diagram-2-dual-database-synchronization-engine)
    - [Diagram 3: Fixed Deposit Lifecycle & Audit Ledger State Machine](#diagram-3-fixed-deposit-lifecycle--audit-ledger-state-machine)
    - [Diagram 4: Maturity Scanning & Proximity Alert Pipeline](#diagram-4-maturity-scanning--proximity-alert-pipeline)
-3. [Quick-Start Guide](#quick-start-guide)
+3. [Quick Start Guide](#quick-start-guide)
 4. [Environment Variables Reference](#environment-variables-reference)
 5. [Dual-Database Engine (SQLite vs MySQL)](#dual-database-engine)
 6. [Docker & Self-Hosting Guide](#docker--self-hosting-guide)
@@ -213,7 +213,7 @@ flowchart TD
 
 ---
 
-## Quick-Start Guide
+## Quick Start Guide
 
 ### Prerequisites
 - **Node.js**: `v18.18.0` or higher (tested on Node `v24.14.0`)
