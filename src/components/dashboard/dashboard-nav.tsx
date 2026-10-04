@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Logo } from '@/components/layout/logo';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
+import { NotificationCenter } from '@/components/notifications/notification-center';
 import {
   LayoutDashboard,
   Shield,
@@ -62,6 +63,7 @@ export function DashboardNav() {
         </div>
 
         <div className="flex items-center gap-3">
+          <NotificationCenter />
           <ThemeToggle />
           <button
             onClick={handleLogout}
