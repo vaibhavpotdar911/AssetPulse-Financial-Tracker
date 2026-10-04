@@ -224,20 +224,27 @@ export async function scanMaturityAlertsForUser(
     );
 
     // 7. Insert Notification Record
-    await prisma.notification.create({
-      data: {
-        userId: deposit.userId,
-        depositId: deposit.id,
-        type: classification.type,
-        severity: classification.severity,
-        title: content.title,
-        message: content.message,
-        isRead: false,
-      },
-    });
+    try {
+      await prisma.notification.create({
+        data: {
+          userId: deposit.userId,
+          depositId: deposit.id,
+          type: classification.type,
+          severity: classification.severity,
+          title: content.title,
+          message: content.message,
+          isRead: false,
+        },
+      });
 
-    existingSet.add(deduplicationKey);
-    notificationsCreated += 1;
+      existingSet.add(deduplicationKey);
+      notificationsCreated += 1;
+    } catch (err: any) {
+      if (err?.code === 'P2003') {
+        continue;
+      }
+      throw err;
+    }
 
     // 8. Dispatch Webhook (non-blocking)
     if (shouldDispatchWebhooks) {
@@ -289,8 +296,12 @@ export async function scanAllMaturityAlerts(
   const results: ScanResult[] = [];
 
   for (const tenant of activeTenants) {
-    const userResult = await scanMaturityAlertsForUser(tenant.userId, options);
-    results.push(userResult);
+    try {
+      const userResult = await scanMaturityAlertsForUser(tenant.userId, options);
+      results.push(userResult);
+    } catch (err) {
+      console.warn(`[scanAllMaturityAlerts] Skipped tenant ${tenant.userId}:`, err);
+    }
   }
 
   return results;
