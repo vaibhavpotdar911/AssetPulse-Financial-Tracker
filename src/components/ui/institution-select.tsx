@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useRef, useState, useEffect, useId } from 'react';
-import { ChevronDown, Check, Building2, Plus, Search } from 'lucide-react';
+import { ChevronDown, Check, Building2, Plus, Search, Star } from 'lucide-react';
 
 export interface InstitutionOption {
   value: string;
   label: string;
   category?: string;
   badge?: string;
+  isCustom?: boolean;
 }
 
 export const PRESET_INSTITUTIONS: InstitutionOption[] = [
@@ -49,6 +50,8 @@ export const PRESET_INSTITUTIONS: InstitutionOption[] = [
   { value: 'Wells Fargo', label: 'Wells Fargo', category: 'International Banks', badge: 'Global' },
 ];
 
+const LOCAL_STORAGE_CUSTOM_INSTITUTIONS_KEY = 'assetpulse_custom_institutions';
+
 interface InstitutionSelectProps {
   value: string;
   onChange: (value: string) => void;
@@ -68,12 +71,57 @@ export function InstitutionSelect({
   const [search, setSearch] = useState('');
   const [isCustomMode, setIsCustomMode] = useState(false);
   const [customName, setCustomName] = useState('');
+  const [savedInstitutions, setSavedInstitutions] = useState<string[]>([]);
   const ref = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const id = useId();
 
-  // If initial value is not in presets and non-empty, keep it
-  const isPreset = PRESET_INSTITUTIONS.some((inst) => inst.value === value);
+  // Load custom & previously used institutions on mount
+  useEffect(() => {
+    let localSaved: string[] = [];
+    try {
+      const stored = localStorage.getItem(LOCAL_STORAGE_CUSTOM_INSTITUTIONS_KEY);
+      if (stored) {
+        localSaved = JSON.parse(stored);
+      }
+    } catch {
+      // Fallback
+    }
+
+    // Also fetch from API to get history across devices/cleared storage
+    fetch('/api/institutions')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.success && Array.isArray(data.institutions)) {
+          const combined = Array.from(new Set([...localSaved, ...data.institutions]));
+          setSavedInstitutions(combined);
+          try {
+            localStorage.setItem(LOCAL_STORAGE_CUSTOM_INSTITUTIONS_KEY, JSON.stringify(combined));
+          } catch {}
+        } else if (localSaved.length > 0) {
+          setSavedInstitutions(localSaved);
+        }
+      })
+      .catch(() => {
+        if (localSaved.length > 0) {
+          setSavedInstitutions(localSaved);
+        }
+      });
+  }, []);
+
+  // Save institution to local storage and state when selected/added
+  const persistCustomInstitution = (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+
+    setSavedInstitutions((prev) => {
+      const updated = Array.from(new Set([trimmed, ...prev]));
+      try {
+        localStorage.setItem(LOCAL_STORAGE_CUSTOM_INSTITUTIONS_KEY, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  };
 
   useEffect(() => {
     function handler(e: MouseEvent) {
@@ -93,20 +141,53 @@ export function InstitutionSelect({
     }
   }, [open]);
 
-  const filtered = PRESET_INSTITUTIONS.filter((inst) =>
-    inst.label.toLowerCase().includes(search.toLowerCase()) ||
-    (inst.category && inst.category.toLowerCase().includes(search.toLowerCase()))
-  );
-
-  // Group by category
-  const categories: { [cat: string]: InstitutionOption[] } = {};
-  filtered.forEach((inst) => {
-    const cat = inst.category || 'Other Institutions';
-    if (!categories[cat]) categories[cat] = [];
-    categories[cat].push(inst);
+  // Saved institutions mapped to options (My Saved Institutions category at the top)
+  const savedOptions: InstitutionOption[] = savedInstitutions.map((name) => {
+    const existingPreset = PRESET_INSTITUTIONS.find(
+      (p) => p.value.toLowerCase() === name.toLowerCase()
+    );
+    return {
+      value: name,
+      label: name,
+      category: 'My Saved Institutions',
+      badge: existingPreset ? 'Saved' : 'Custom',
+      isCustom: true,
+    };
   });
 
+  // Combine saved options (first) and preset options (filtered out if already in saved)
+  const nonSavedPresets = PRESET_INSTITUTIONS.filter(
+    (preset) => !savedInstitutions.some((s) => s.toLowerCase() === preset.value.toLowerCase())
+  );
+
+  const allAvailableOptions = [...savedOptions, ...nonSavedPresets];
+
+  const filtered = allAvailableOptions.filter(
+    (inst) =>
+      inst.label.toLowerCase().includes(search.toLowerCase()) ||
+      (inst.category && inst.category.toLowerCase().includes(search.toLowerCase()))
+  );
+
+  // Group by category, keeping 'My Saved Institutions' strictly first
+  const categories: { [cat: string]: InstitutionOption[] } = {};
+  
+  // If there are saved institutions that match search, insert that bucket first
+  const savedMatches = filtered.filter((i) => i.category === 'My Saved Institutions');
+  if (savedMatches.length > 0) {
+    categories['My Saved Institutions'] = savedMatches;
+  }
+
+  // Then add remaining categories
+  filtered
+    .filter((i) => i.category !== 'My Saved Institutions')
+    .forEach((inst) => {
+      const cat = inst.category || 'Other Institutions';
+      if (!categories[cat]) categories[cat] = [];
+      categories[cat].push(inst);
+    });
+
   const handleSelect = (val: string) => {
+    persistCustomInstitution(val);
     onChange(val);
     setOpen(false);
     setIsCustomMode(false);
@@ -115,7 +196,9 @@ export function InstitutionSelect({
   const handleCustomSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (customName.trim()) {
-      onChange(customName.trim());
+      const val = customName.trim();
+      persistCustomInstitution(val);
+      onChange(val);
       setIsCustomMode(false);
       setCustomName('');
       setOpen(false);
@@ -191,7 +274,7 @@ export function InstitutionSelect({
         <div
           role="listbox"
           className="absolute z-50 mt-1.5 w-full min-w-[280px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-98 duration-100"
-          style={{ maxHeight: '340px' }}
+          style={{ maxHeight: '360px' }}
         >
           {/* Search box & Custom Add option */}
           <div className="p-2 border-b border-slate-100 dark:border-slate-800 sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xs z-10 space-y-1.5">
@@ -221,61 +304,76 @@ export function InstitutionSelect({
             </button>
           </div>
 
-          <div className="overflow-y-auto max-h-[250px] p-1 space-y-1">
+          <div className="overflow-y-auto max-h-[270px] p-1 space-y-1">
             {Object.keys(categories).length === 0 ? (
               <div className="p-4 text-center">
                 <p className="text-xs text-slate-500 mb-2">No banks found matching &quot;{search}&quot;</p>
                 <button
                   type="button"
                   onClick={() => {
-                    onChange(search);
-                    setOpen(false);
+                    handleSelect(search);
                   }}
-                  className="px-3 py-1.5 text-xs font-semibold text-white bg-brand-emerald-600 rounded-lg"
+                  className="px-3 py-1.5 text-xs font-semibold text-white bg-brand-emerald-600 rounded-lg hover:bg-brand-emerald-700 transition-colors"
                 >
                   Use &quot;{search}&quot;
                 </button>
               </div>
             ) : (
-              Object.entries(categories).map(([cat, items]) => (
-                <div key={cat} className="pt-1 first:pt-0">
-                  <div className="px-2.5 pt-1.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 select-none">
-                    {cat}
-                  </div>
-                  {items.map((item) => {
-                    const isSelected = value === item.value;
-                    return (
-                      <button
-                        key={item.value}
-                        type="button"
-                        role="option"
-                        aria-selected={isSelected}
-                        onClick={() => handleSelect(item.value)}
-                        className={`
-                          w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2
-                          text-xs md:text-sm transition-colors duration-100
-                          ${isSelected
-                            ? 'bg-brand-emerald-500/10 text-brand-emerald-700 dark:text-brand-emerald-300 font-semibold'
-                            : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/70'
-                          }
-                        `}
-                      >
-                        <div className="flex items-center gap-2 truncate">
-                          <span className="truncate">{item.label}</span>
-                          {item.badge && (
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 shrink-0">
-                              {item.badge}
-                            </span>
+              Object.entries(categories).map(([cat, items]) => {
+                const isSavedCategory = cat === 'My Saved Institutions';
+                return (
+                  <div key={cat} className={`pt-1 first:pt-0 ${isSavedCategory ? 'border-b border-slate-100 dark:border-slate-800 pb-1.5 mb-1 bg-emerald-500/5 -mx-1 px-1 rounded-lg' : ''}`}>
+                    <div className="px-2.5 pt-1.5 pb-1 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 select-none text-slate-400 dark:text-slate-500">
+                      {isSavedCategory && (
+                        <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
+                      )}
+                      <span className={isSavedCategory ? 'text-brand-emerald-700 dark:text-brand-emerald-400 font-extrabold' : ''}>
+                        {cat}
+                      </span>
+                    </div>
+                    {items.map((item) => {
+                      const isSelected = value === item.value;
+                      return (
+                        <button
+                          key={item.value}
+                          type="button"
+                          role="option"
+                          aria-selected={isSelected}
+                          onClick={() => handleSelect(item.value)}
+                          className={`
+                            w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2
+                            text-xs md:text-sm transition-colors duration-100
+                            ${isSelected
+                              ? 'bg-brand-emerald-500/10 text-brand-emerald-700 dark:text-brand-emerald-300 font-semibold'
+                              : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/70'
+                            }
+                          `}
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            <span className="truncate">{item.label}</span>
+                            {item.badge && (
+                              <span
+                                className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase shrink-0 ${
+                                  item.badge === 'Custom'
+                                    ? 'bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
+                                    : item.badge === 'Saved'
+                                    ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                                }`}
+                              >
+                                {item.badge}
+                              </span>
+                            )}
+                          </div>
+                          {isSelected && (
+                            <Check className="h-3.5 w-3.5 shrink-0 text-brand-emerald-600 dark:text-brand-emerald-400" />
                           )}
-                        </div>
-                        {isSelected && (
-                          <Check className="h-3.5 w-3.5 shrink-0 text-brand-emerald-600 dark:text-brand-emerald-400" />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              ))
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })
             )}
           </div>
         </div>
