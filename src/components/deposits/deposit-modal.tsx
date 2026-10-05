@@ -11,6 +11,7 @@ import {
 import { X, AlertCircle, Loader2, Clock, Calculator, ArrowRightLeft } from 'lucide-react';
 import { InstitutionSelect } from '@/components/ui/institution-select';
 import { Select, SelectOption } from '@/components/ui/select';
+import { DatePicker } from '@/components/ui/date-picker';
 import { useCurrency } from '@/components/providers/currency-provider';
 
 interface DepositModalProps {
@@ -505,36 +506,24 @@ export function DepositModal({ isOpen, onClose, onSuccess, deposit }: DepositMod
             </div>
           </div>
 
-          {/* Start Date and Maturity Date (Both Editable & Synchronized) */}
+          {/* Start Date and Maturity Date (Both Editable & Synchronized via Custom Date Picker) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Start Date *
-              </label>
-              <div className="relative">
-                <input
-                  type="date"
-                  required
-                  value={startDate}
-                  onChange={(e) => handleStartDateChange(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-emerald-500/30 focus:border-brand-emerald-500 focus:outline-none"
-                />
-              </div>
+              <DatePicker
+                label="Start Date"
+                required
+                value={startDate}
+                onChange={(val) => handleStartDateChange(val)}
+              />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Maturity Date (Calculated or Custom) *
-              </label>
-              <div className="relative">
-                <input
-                  type="date"
-                  required
-                  value={maturityDate}
-                  onChange={(e) => handleMaturityDateChange(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-emerald-500/30 focus:border-brand-emerald-500 focus:outline-none"
-                />
-              </div>
+              <DatePicker
+                label="Maturity Date (Calculated or Custom)"
+                required
+                value={maturityDate}
+                onChange={(val) => handleMaturityDateChange(val)}
+              />
             </div>
           </div>
 

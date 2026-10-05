@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { DashboardNav } from '@/components/dashboard/dashboard-nav';
 import { DiffInspector } from '@/components/audit/diff-inspector';
 import { Select } from '@/components/ui/select';
+import { DatePicker } from '@/components/ui/date-picker';
 import { useCurrency } from '@/components/providers/currency-provider';
 import {
   History,
@@ -126,23 +127,25 @@ export default function AuditLogsPage() {
               />
             </div>
 
-            {/* Date Range */}
-            <div className="flex items-center gap-1.5">
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="px-2.5 py-1.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                title="Start Date"
-              />
-              <span className="text-slate-400 text-xs">to</span>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="px-2.5 py-1.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                title="End Date"
-              />
+            {/* Date Range with custom DatePicker */}
+            <div className="flex items-center gap-1.5 min-w-[280px]">
+              <div className="flex-1">
+                <DatePicker
+                  value={startDate}
+                  onChange={setStartDate}
+                  placeholder="From date"
+                  size="sm"
+                />
+              </div>
+              <span className="text-slate-400 text-xs px-0.5">to</span>
+              <div className="flex-1">
+                <DatePicker
+                  value={endDate}
+                  onChange={setEndDate}
+                  placeholder="To date"
+                  size="sm"
+                />
+              </div>
             </div>
 
             {(startDate || endDate || bankQuery || actionFilter !== 'ALL') && (
