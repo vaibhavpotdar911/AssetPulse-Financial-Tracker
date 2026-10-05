@@ -16,8 +16,8 @@
     "typescript"
   ],
   "scripts": {
-    "dev": "npm run db:prep && next dev",
-    "build": "npm run db:prep && next build",
+    "dev": "npm run db:push && next dev",
+    "build": "npm run db:push && next build",
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",

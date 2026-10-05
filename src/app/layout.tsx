@@ -13,6 +13,19 @@ export const metadata: Metadata = {
   },
 };
 
+// Blocking script that runs before React hydrates — sets the correct theme
+// class on <html> to prevent flash of unstyled content (FOUC / blank screen).
+const themeScript = `
+  (function() {
+    try {
+      var stored = localStorage.getItem('theme');
+      var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      var theme = stored === 'dark' || stored === 'light' ? stored : (prefersDark ? 'dark' : 'light');
+      document.documentElement.classList.toggle('dark', theme === 'dark');
+    } catch(e) {}
+  })();
+`;
+
 export default function RootLayout({
   children,
 }: {
@@ -20,6 +33,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Blocking inline script — must run before first paint to prevent blank screen */}
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="min-h-screen bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-50">
         <ThemeProvider
           attribute="class"
