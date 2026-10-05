@@ -24,9 +24,10 @@
 4. [Environment Variables Reference](#environment-variables-reference)
 5. [Dual-Database Engine (SQLite vs MySQL)](#dual-database-engine)
 6. [Docker & Self-Hosting Guide](#docker--self-hosting-guide)
-7. [Git Hygiene & Branching Standards](#git-hygiene--branching-standards)
-8. [Testing & Quality Verification](#testing--quality-verification)
-9. [License](#license)
+7. [Kubernetes (K8s) Deployment & External MySQL Configuration](#kubernetes-k8s-deployment--external-mysql-configuration)
+8. [Git Hygiene & Branching Standards](#git-hygiene--branching-standards)
+9. [Testing & Quality Verification](#testing--quality-verification)
+10. [License](#license)
 
 ---
 
@@ -362,6 +363,56 @@ Launch with:
 ```bash
 docker compose up -d
 ```
+
+---
+
+## Kubernetes (K8s) Deployment & External MySQL Configuration
+
+AssetPulse is fully stateless when connected to external MySQL, making it ideal for container orchestrators like Kubernetes.
+
+### 1. Where to Set the Configuration in K8s
+All configuration is passed via environment variables on the Deployment (or via Kubernetes `Secret` / `ConfigMap`). No code changes or rebuilds are needed:
+
+- **`DB_TYPE`**: Set to `mysql`
+- **`DATABASE_URL`**: Set to your standard MySQL URI: `mysql://<user>:<password>@<host>:<port>/<database>`
+- **`JWT_SECRET`**: Set to any secure 32+ character string used for session signing
+
+You can set them using `kubectl`:
+```bash
+kubectl set env deployment/assetpulse \
+  DB_TYPE="mysql" \
+  DATABASE_URL="mysql://db_user:db_password@your-mysql-host:3306/fintrack" \
+  JWT_SECRET="generate-a-secure-32-char-random-secret-key"
+```
+
+Or reference them from a `Secret` in your deployment manifest:
+```yaml
+env:
+  - name: DB_TYPE
+    value: "mysql"
+  - name: DATABASE_URL
+    valueFrom:
+      secretKeyRef:
+        name: assetpulse-secrets
+        key: DATABASE_URL
+  - name: JWT_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: assetpulse-secrets
+        key: JWT_SECRET
+```
+
+### 2. How Pod Lifecycle & Data Retention Work
+- **Pod Re-creations & Rescheduling**: When a Pod is destroyed, evicted, or rescheduled by Kubernetes, the Deployment controller automatically launches a new Pod and injects the same configuration stored in `etcd`.
+- **Zero Local Disk Dependency (Stateless Pods)**: When using external MySQL, no user accounts, fixed deposits, audit logs, or settings are stored on the Pod’s ephemeral filesystem. Everything is queried and written directly to your external MySQL instance across the network.
+- **No PVC / Storage Volume Needed**: Because state is managed entirely by your external MySQL database, you do **not** need PersistentVolumeClaims (PVCs) attached to your pods.
+- **Multi-Replica Horizontal Scaling**: Because state is centralized in MySQL, you can scale the deployment to multiple replicas (`replicas: 2+`) for high availability.
+
+### 3. MySQL Host Connectivity from K8s
+- **Cloud Managed MySQL (AWS RDS, GCP Cloud SQL, DigitalOcean)**: Use the cloud endpoint domain in `DATABASE_URL` (e.g. `mysql://user:pass@mydb.c123.rds.amazonaws.com:3306/fintrack`).
+- **VM / External Server**: Use the server IP or internal DNS (e.g. `mysql://user:pass@192.168.1.50:3306/fintrack`).
+- **In-Cluster MySQL**: Use the internal K8s Service DNS (e.g. `mysql://user:pass@mysql-service.default.svc.cluster.local:3306/fintrack`).
+- **Special Characters in Passwords**: If your MySQL password contains special characters (like `@`, `#`, `:`, or `/`), ensure it is URL-encoded in the connection string (e.g., `@` becomes `%40`).
 
 ---
 
