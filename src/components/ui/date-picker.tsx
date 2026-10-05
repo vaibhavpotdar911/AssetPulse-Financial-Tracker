@@ -7,7 +7,6 @@ import {
   ChevronRight,
   X,
 } from 'lucide-react';
-import { format, parseISO, isValid, isToday, isSameDay } from 'date-fns';
 
 export interface DatePickerProps {
   value: string; // ISO date string YYYY-MM-DD
@@ -36,7 +35,47 @@ const MONTH_NAMES = [
   'December',
 ];
 
+const SHORT_MONTH_NAMES = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
 const DAYS_OF_WEEK = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+function parseYMD(str: string): { year: number; month: number; day: number } | null {
+  if (!str) return null;
+  const parts = str.split('-');
+  if (parts.length !== 3) return null;
+  const y = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10) - 1; // 0-indexed
+  const d = parseInt(parts[2], 10);
+  if (isNaN(y) || isNaN(m) || isNaN(d)) return null;
+  return { year: y, month: m, day: d };
+}
+
+function formatDisplayDate(dateStr: string): string {
+  const parsed = parseYMD(dateStr);
+  if (!parsed) return '';
+  return `${SHORT_MONTH_NAMES[parsed.month]} ${String(parsed.day).padStart(2, '0')}, ${parsed.year}`;
+}
+
+function getTodayString(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
 export function DatePicker({
   value,
@@ -53,20 +92,21 @@ export function DatePicker({
   const containerRef = useRef<HTMLDivElement>(null);
   const id = useId();
 
-  // Internal view state for month & year navigation
-  const parsedValue = value ? parseISO(value) : null;
-  const initialDate = parsedValue && isValid(parsedValue) ? parsedValue : new Date();
+  const parsedValue = parseYMD(value);
+  const now = new Date();
+  const initialYear = parsedValue ? parsedValue.year : now.getFullYear();
+  const initialMonth = parsedValue ? parsedValue.month : now.getMonth();
 
-  const [viewYear, setViewYear] = useState<number>(initialDate.getFullYear());
-  const [viewMonth, setViewMonth] = useState<number>(initialDate.getMonth());
+  const [viewYear, setViewYear] = useState<number>(initialYear);
+  const [viewMonth, setViewMonth] = useState<number>(initialMonth);
 
   // Update view month/year if value changes externally
   useEffect(() => {
     if (value) {
-      const d = parseISO(value);
-      if (isValid(d)) {
-        setViewYear(d.getFullYear());
-        setViewMonth(d.getMonth());
+      const p = parseYMD(value);
+      if (p) {
+        setViewYear(p.year);
+        setViewMonth(p.month);
       }
     }
   }, [value]);
@@ -118,11 +158,11 @@ export function DatePicker({
   };
 
   const handleQuickSelectToday = () => {
-    const today = new Date();
-    const formatted = format(today, 'yyyy-MM-dd');
-    onChange(formatted);
-    setViewYear(today.getFullYear());
-    setViewMonth(today.getMonth());
+    const todayStr = getTodayString();
+    onChange(todayStr);
+    const nowD = new Date();
+    setViewYear(nowD.getFullYear());
+    setViewMonth(nowD.getMonth());
     setOpen(false);
   };
 
@@ -152,7 +192,7 @@ export function DatePicker({
     days.push({ day: d, currentMonth: true, dateStr, disabled });
   }
 
-  // Next month leading days (fill row to 35 or 42)
+  // Next month leading days (fill row to complete grid)
   const remainingCells = (7 - (days.length % 7)) % 7;
   for (let d = 1; d <= remainingCells; d++) {
     const m = viewMonth === 11 ? 1 : viewMonth + 2;
@@ -161,15 +201,8 @@ export function DatePicker({
     days.push({ day: d, currentMonth: false, dateStr, disabled: true });
   }
 
-  // Formatted display value (e.g. "Oct 15, 2026")
-  let displayValue = '';
-  if (value) {
-    const parsed = parseISO(value);
-    if (isValid(parsed)) {
-      displayValue = format(parsed, 'MMM dd, yyyy');
-    }
-  }
-
+  const displayValue = formatDisplayDate(value);
+  const todayStr = getTodayString();
   const heightClass = size === 'sm' ? 'px-2.5 py-1.5 text-xs' : 'px-3.5 py-2 text-sm';
 
   return (
@@ -225,7 +258,7 @@ export function DatePicker({
         >
           {/* Header Month/Year Selector & Nav */}
           <div className="flex items-center justify-between mb-3 px-1">
-            <div className="flex items-center gap-1 font-bold text-sm text-slate-900 dark:text-white">
+            <div className="flex items-center gap-1.5 font-bold text-sm text-slate-900 dark:text-white">
               <span>{MONTH_NAMES[viewMonth]}</span>
               <span className="text-brand-emerald-600 dark:text-brand-emerald-400 font-extrabold">{viewYear}</span>
             </div>
@@ -276,7 +309,7 @@ export function DatePicker({
               }
 
               const isSelected = value === item.dateStr;
-              const isCurrentDay = isToday(parseISO(item.dateStr));
+              const isCurrentDay = item.dateStr === todayStr;
 
               return (
                 <button
