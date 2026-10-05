@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.env
+.env*.local
+*.log
+fintrack.db
+fintrack.db-journal
+tests
+.github
+Dockerfile*
+.dockerignore
+README.md
+LICENSE
