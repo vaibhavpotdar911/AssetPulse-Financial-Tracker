@@ -22,6 +22,8 @@ import {
   calculateDaysBetween,
   getCompoundingMultiplier,
   validateFinancialParams,
+  calculateMaturityDateFromTenure,
+  calculateTenureBreakdown,
   type CompoundingFrequency,
   type FinancialCalculationParams,
 } from '@/lib/financial';
@@ -582,6 +584,41 @@ describe('Financial Calculation Engine (src/lib/financial.ts)', () => {
         expect(engineResult.progressPercentage).toBeCloseTo(oracleResult.progressPercentage, 0.01);
         expect(engineResult.isMatured).toBe(oracleResult.isMatured);
       }
+    });
+
+  });
+
+  describe('6. Tenure Arithmetic & Date Conversions Suite', () => {
+
+    it('TC-TENURE-01: calculates maturity date from pure days tenure', () => {
+      expect(calculateMaturityDateFromTenure('2026-01-01', { days: 45 })).toBe('2026-02-15');
+      expect(calculateMaturityDateFromTenure('2026-01-01', { days: 365 })).toBe('2027-01-01');
+    });
+
+    it('TC-TENURE-02: calculates maturity date from pure months tenure', () => {
+      expect(calculateMaturityDateFromTenure('2026-01-15', { months: 6 })).toBe('2026-07-15');
+      expect(calculateMaturityDateFromTenure('2026-03-31', { months: 1 })).toBe('2026-04-30');
+    });
+
+    it('TC-TENURE-03: calculates maturity date from pure years tenure', () => {
+      expect(calculateMaturityDateFromTenure('2026-05-10', { years: 2 })).toBe('2028-05-10');
+      expect(calculateMaturityDateFromTenure('2026-05-10', { years: 5 })).toBe('2031-05-10');
+    });
+
+    it('TC-TENURE-04: calculates maturity date from mix-and-match tenure (years, months, and days)', () => {
+      // 1 year, 3 months, 10 days from 2026-01-05
+      // 2026-01-05 + 1 year -> 2027-01-05
+      // + 3 months -> 2027-04-05
+      // + 10 days -> 2027-04-15
+      expect(calculateMaturityDateFromTenure('2026-01-05', { years: 1, months: 3, days: 10 })).toBe('2027-04-15');
+    });
+
+    it('TC-TENURE-05: calculateTenureBreakdown decomposes date range into years, months, and days', () => {
+      const breakdown = calculateTenureBreakdown('2026-01-01', '2027-01-01');
+      expect(breakdown.years).toBe(1);
+      expect(breakdown.months).toBe(0);
+      expect(breakdown.days).toBe(0);
+      expect(breakdown.totalDays).toBe(365);
     });
 
   });

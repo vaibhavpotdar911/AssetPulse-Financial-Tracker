@@ -209,3 +209,84 @@ export function calculateFixedDeposit(params: FinancialCalculationParams): Finan
     isMatured,
   };
 }
+
+export interface TenureInput {
+  years?: number;
+  months?: number;
+  days?: number;
+}
+
+/**
+ * Calculates maturity date string (YYYY-MM-DD) from a given start date and mixed tenure (years, months, days).
+ * Employs UTC date arithmetic for timezone consistency.
+ */
+export function calculateMaturityDateFromTenure(startDateStr: string | Date, tenure: TenureInput): string {
+  const start = parseDateUTC(startDateStr);
+  const years = Math.max(0, Math.floor(tenure.years || 0));
+  const months = Math.max(0, Math.floor(tenure.months || 0));
+  const days = Math.max(0, Math.floor(tenure.days || 0));
+
+  const targetYear = start.getUTCFullYear() + years;
+  const targetMonth = start.getUTCMonth() + months;
+  const originalDay = start.getUTCDate();
+
+  // Create date adding years and months
+  const result = new Date(Date.UTC(targetYear, targetMonth, 1));
+  // Determine max days in the target month to prevent month overflow (e.g. Jan 31 + 1 month -> Feb 28)
+  const daysInMonth = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate();
+  result.setUTCDate(Math.min(originalDay, daysInMonth));
+
+  // Now add any extra days
+  if (days > 0) {
+    result.setUTCDate(result.getUTCDate() + days);
+  }
+
+  const yyyy = result.getUTCFullYear();
+  const mm = String(result.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(result.getUTCDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+export interface TenureBreakdown {
+  years: number;
+  months: number;
+  days: number;
+  totalDays: number;
+}
+
+/**
+ * Computes human-readable tenure breakdown (years, months, days) from two dates.
+ */
+export function calculateTenureBreakdown(startDateStr: string | Date, maturityDateStr: string | Date): TenureBreakdown {
+  const start = parseDateUTC(startDateStr);
+  const maturity = parseDateUTC(maturityDateStr);
+
+  const totalDays = calculateDaysBetween(start, maturity);
+  if (totalDays <= 0) {
+    return { years: 0, months: 0, days: 0, totalDays: Math.max(0, totalDays) };
+  }
+
+  let years = maturity.getUTCFullYear() - start.getUTCFullYear();
+  let months = maturity.getUTCMonth() - start.getUTCMonth();
+  let days = maturity.getUTCDate() - start.getUTCDate();
+
+  if (days < 0) {
+    months -= 1;
+    // Days in previous month of maturity date
+    const prevMonthDays = new Date(Date.UTC(maturity.getUTCFullYear(), maturity.getUTCMonth(), 0)).getUTCDate();
+    days += prevMonthDays;
+  }
+
+  if (months < 0) {
+    years -= 1;
+    months += 12;
+  }
+
+  return {
+    years: Math.max(0, years),
+    months: Math.max(0, months),
+    days: Math.max(0, days),
+    totalDays,
+  };
+}
+
