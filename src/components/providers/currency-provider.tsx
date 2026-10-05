@@ -69,25 +69,28 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
 
   const currencyConfig = SUPPORTED_CURRENCIES[currency] || SUPPORTED_CURRENCIES.INR;
 
+  /**
+   * Deterministic currency formatter:
+   * Uses standard symbol + locale-formatted number.
+   * Avoids ICU whitespace differences between Node.js server (e.g. "₹0.00")
+   * and browser webkit/blink (e.g. "₹ 0.00" with non-breaking space).
+   */
   const formatAmount = (
     amount: number,
     options?: { minimumFractionDigits?: number; maximumFractionDigits?: number }
   ) => {
     const minDigits = options?.minimumFractionDigits ?? 2;
     const maxDigits = options?.maximumFractionDigits ?? 2;
+    const num = Number(amount || 0);
 
     try {
-      return new Intl.NumberFormat(currencyConfig.locale, {
-        style: 'currency',
-        currency: currencyConfig.code,
+      const formattedNum = num.toLocaleString(currencyConfig.locale, {
         minimumFractionDigits: minDigits,
         maximumFractionDigits: maxDigits,
-      }).format(amount);
+      });
+      return `${currencyConfig.symbol}${formattedNum}`;
     } catch {
-      return `${currencyConfig.symbol}${amount.toLocaleString(undefined, {
-        minimumFractionDigits: minDigits,
-        maximumFractionDigits: maxDigits,
-      })}`;
+      return `${currencyConfig.symbol}${num.toFixed(minDigits)}`;
     }
   };
 
