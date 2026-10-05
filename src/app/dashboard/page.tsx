@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { DashboardNav } from '@/components/dashboard/dashboard-nav';
 import { DepositModal } from '@/components/deposits/deposit-modal';
 import { DispositionModal } from '@/components/deposits/disposition-modal';
+import { useCurrency } from '@/components/providers/currency-provider';
 import {
   Wallet,
   TrendingUp,
@@ -22,6 +23,7 @@ import {
 } from 'lucide-react';
 
 export default function DashboardPage() {
+  const { symbol, formatAmount } = useCurrency();
   const [deposits, setDeposits] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -143,7 +145,7 @@ export default function DashboardPage() {
                       {fd.bankName}
                     </span>
                     <span className="text-[11px] font-mono text-slate-400 block">
-                      {fd.accountNumber} • Payout: ${Number(fd.maturityAmount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      {fd.accountNumber} • Payout: {formatAmount(Number(fd.maturityAmount))}
                     </span>
                   </div>
                   <button
@@ -203,7 +205,7 @@ export default function DashboardPage() {
                     {fd.bankName} ({fd.accountNumber})
                   </span>
                   <span className="font-mono text-brand-emerald-600 dark:text-brand-emerald-400 font-semibold">
-                    ${Number(fd.maturityAmount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    {formatAmount(Number(fd.maturityAmount))}
                   </span>
                   <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/20 text-amber-800 dark:text-amber-300">
                     {fd.daysRemaining === 1 ? '1 day left' : `${fd.daysRemaining} days left`}
@@ -227,7 +229,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="text-xl sm:text-2xl font-bold font-mono text-slate-950 dark:text-white">
-              ${totalPrincipal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatAmount(totalPrincipal)}
             </div>
             <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">
               Invested principal capital
@@ -245,7 +247,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="text-xl sm:text-2xl font-bold font-mono text-brand-emerald-600 dark:text-brand-emerald-400">
-              +${totalAccruedInterest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              +{formatAmount(totalAccruedInterest)}
             </div>
             <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">
               Earned up to today
@@ -263,7 +265,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="text-xl sm:text-2xl font-bold font-mono text-indigo-600 dark:text-indigo-400">
-              ${totalMaturityValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatAmount(totalMaturityValue)}
             </div>
             <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">
               Principal + guaranteed payout
@@ -387,7 +389,7 @@ export default function DashboardPage() {
                         </td>
 
                         <td className="py-3.5 px-4 font-mono font-semibold text-slate-900 dark:text-slate-100">
-                          ${fd.principalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          {formatAmount(fd.principalAmount)}
                         </td>
 
                         <td className="py-3.5 px-4">
@@ -397,7 +399,7 @@ export default function DashboardPage() {
                         </td>
 
                         <td className="py-3.5 px-4 font-mono text-brand-emerald-600 dark:text-brand-emerald-400 font-semibold">
-                          +${Number(fd.accruedInterest || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          +{formatAmount(Number(fd.accruedInterest || 0))}
                         </td>
 
                         <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">

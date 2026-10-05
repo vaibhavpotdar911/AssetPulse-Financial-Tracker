@@ -3,6 +3,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { DispositionType } from '@/lib/audit';
 import { X, AlertTriangle, ShieldCheck, Loader2 } from 'lucide-react';
+import { Select, SelectOption } from '@/components/ui/select';
+import { useCurrency } from '@/components/providers/currency-provider';
 
 interface DispositionModalProps {
   isOpen: boolean;
@@ -11,12 +13,20 @@ interface DispositionModalProps {
   deposit: any;
 }
 
+const DISPOSITION_OPTIONS: SelectOption[] = [
+  { value: 'MATURED_REINVESTED', label: 'Matured & Reinvested into New Instrument', description: 'Rolled over into another fixed deposit or asset' },
+  { value: 'TRANSFERRED_SAVINGS', label: 'Transferred to Savings / Checking Account', description: 'Funds credited to primary bank account' },
+  { value: 'PREMATURE_WITHDRAWAL', label: 'Premature / Early Emergency Liquidation', description: 'Withdrawn before scheduled maturity with penalty' },
+  { value: 'OTHER', label: 'Other / Portfolio Realignment', description: 'Reallocated to other assets or investments' },
+];
+
 export function DispositionModal({
   isOpen,
   onClose,
   onSuccess,
   deposit,
 }: DispositionModalProps) {
+  const { symbol, formatAmount } = useCurrency();
   const [dispositionType, setDispositionType] = useState<DispositionType>('MATURED_REINVESTED');
   const [destinationAccount, setDestinationAccount] = useState('');
   const [penaltyAmount, setPenaltyAmount] = useState<number | string>(0);
@@ -124,62 +134,66 @@ export function DispositionModal({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Disposition Reason *
-            </label>
-            <select
+            <Select
               value={dispositionType}
-              onChange={(e) => setDispositionType(e.target.value as DispositionType)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-emerald-500 focus:outline-none"
-            >
-              <option value="MATURED_REINVESTED">Matured & Reinvested into New Instrument</option>
-              <option value="TRANSFERRED_SAVINGS">Transferred to Savings / Checking Account</option>
-              <option value="PREMATURE_WITHDRAWAL">Premature / Early Emergency Liquidation</option>
-              <option value="OTHER">Other / Portfolio Realignment</option>
-            </select>
+              onChange={(val) => setDispositionType(val as DispositionType)}
+              options={DISPOSITION_OPTIONS}
+              label="Disposition Reason"
+              placeholder="Select disposition reason"
+            />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Payout Destination Account / Entity *
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              Payout Destination Account / Entity <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
               required
               value={destinationAccount}
               onChange={(e) => setDestinationAccount(e.target.value)}
-              placeholder="e.g. Chase Checking #4401 or Certificate Rollover"
-              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-emerald-500 focus:outline-none"
+              placeholder="e.g. SBI Savings #9102 or Rollover Certificate"
+              className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-emerald-500/30 focus:border-brand-emerald-500 focus:outline-none"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Realized Interest Disbursed ($)
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                Realized Interest Disbursed ({symbol})
               </label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={realizedInterest}
-                onChange={(e) => setRealizedInterest(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-emerald-500 focus:outline-none font-mono"
-              />
+              <div className="relative">
+                <span className="absolute left-3 top-2 text-sm font-semibold text-slate-400 font-mono">
+                  {symbol}
+                </span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={realizedInterest}
+                  onChange={(e) => setRealizedInterest(e.target.value)}
+                  className="w-full pl-8 pr-3 py-2 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-emerald-500/30 focus:border-brand-emerald-500 focus:outline-none font-mono"
+                />
+              </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Early Penalty Deducted ($)
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                Early Penalty Deducted ({symbol})
               </label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={penaltyAmount}
-                onChange={(e) => setPenaltyAmount(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-emerald-500 focus:outline-none font-mono"
-              />
+              <div className="relative">
+                <span className="absolute left-3 top-2 text-sm font-semibold text-slate-400 font-mono">
+                  {symbol}
+                </span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={penaltyAmount}
+                  onChange={(e) => setPenaltyAmount(e.target.value)}
+                  className="w-full pl-8 pr-3 py-2 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-emerald-500/30 focus:border-brand-emerald-500 focus:outline-none font-mono"
+                />
+              </div>
             </div>
           </div>
 
@@ -189,7 +203,7 @@ export function DispositionModal({
               Net Disbursed Proceeds (Principal + Interest - Penalty):
             </span>
             <span className="text-base font-bold text-brand-emerald-600 dark:text-brand-emerald-400 font-mono">
-              ${netProceeds.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              {formatAmount(netProceeds)}
             </span>
           </div>
 

@@ -2,12 +2,14 @@
 
 import React, { useState } from 'react';
 import { Copy, Check, ChevronDown, ChevronUp, FileCode } from 'lucide-react';
+import { useCurrency } from '@/components/providers/currency-provider';
 
 interface DiffInspectorProps {
   log: any;
 }
 
 export function DiffInspector({ log }: DiffInspectorProps) {
+  const { formatAmount } = useCurrency();
   const [copied, setCopied] = useState(false);
   const [viewJson, setViewJson] = useState(false);
 
@@ -111,11 +113,11 @@ export function DiffInspector({ log }: DiffInspectorProps) {
           </div>
           <div>
             <span className="text-slate-500 block">Realized Interest</span>
-            <span className="text-emerald-400">+${Number(log.realizedInterest || 0).toFixed(2)}</span>
+            <span className="text-emerald-400">+{formatAmount(Number(log.realizedInterest || 0))}</span>
           </div>
           <div>
             <span className="text-slate-500 block">Penalty Deducted</span>
-            <span className="text-rose-400">-${Number(log.penaltyAmount || 0).toFixed(2)}</span>
+            <span className="text-rose-400">-{formatAmount(Number(log.penaltyAmount || 0))}</span>
           </div>
         </div>
       )}

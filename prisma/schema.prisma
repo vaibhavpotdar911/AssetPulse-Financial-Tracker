@@ -25,6 +25,7 @@ model User {
   deposits      FixedDeposit[]
   auditLogs     AuditLog[]
   notifications Notification[]
+  settings      UserSettings?
 
   @@map("users")
 }
@@ -121,3 +122,40 @@ model Notification {
   @@index([createdAt])
   @@map("notifications")
 }
+
+// -------------------------------------------------------------
+// 5. UserSettings Model (Email, Telegram, and Notification Preferences)
+// -------------------------------------------------------------
+model UserSettings {
+  id                    String   @id @default(uuid())
+  userId                String   @unique
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Email Notification Settings
+  emailAlertsEnabled    Boolean  @default(false)
+  emailProvider         String   @default("custom_smtp") // 'oci' | 'custom_smtp' | 'gmail' | 'brevo' | 'resend'
+  emailTo               String?  // Recipient email (defaults to user.email if blank)
+  smtpHost              String?  // e.g., smtp.email.us-ashburn-1.oci.oraclecloud.com for OCI
+  smtpPort              Int?     @default(587)
+  smtpSecure            Boolean  @default(false) // true for 465, false for 587/STARTTLS
+  smtpUser              String?  // OCI SMTP username or provider user
+  smtpPassword          String?  // OCI SMTP password / App password
+  smtpFrom              String?  // Approved sender email in OCI Email Delivery
+
+  // Telegram Alert Settings
+  telegramAlertsEnabled Boolean  @default(false)
+  telegramBotToken      String?  // Bot token from @BotFather
+  telegramChatId        String?  // Chat ID or Channel ID
+
+  // Threshold preferences
+  notifyMaturedToday    Boolean  @default(true)
+  notify7Days           Boolean  @default(true)
+  notify14Days          Boolean  @default(true)
+  notify30Days          Boolean  @default(false)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("user_settings")
+}
+

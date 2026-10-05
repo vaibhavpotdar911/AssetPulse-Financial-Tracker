@@ -5,13 +5,29 @@ export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
 }
 
-export function formatCurrency(amount: number, currency: string = 'USD'): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
+export function formatCurrency(amount: number, currency: string = 'INR', locale: string = 'en-IN'): string {
+  const symbols: Record<string, string> = {
+    INR: '₹',
+    USD: '$',
+    EUR: '€',
+    GBP: '£',
+    AED: 'AED',
+    SGD: 'S$',
+    CAD: 'CA$',
+    AUD: 'A$',
+    JPY: '¥',
+  };
+  const sym = symbols[currency] || currency;
+  const num = Number(amount || 0);
+  try {
+    const formatted = num.toLocaleString(locale, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    return `${sym}${formatted}`;
+  } catch {
+    return `${sym}${num.toFixed(2)}`;
+  }
 }
 
 export function formatDate(date: string | Date): string {
