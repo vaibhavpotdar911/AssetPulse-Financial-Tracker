@@ -15,6 +15,7 @@ import {
   Globe,
   BellRing,
 } from 'lucide-react';
+import { Select, SelectOption } from '@/components/ui/select';
 
 interface NotificationSettingsState {
   emailAlertsEnabled: boolean;
@@ -286,22 +287,17 @@ export function NotificationSettingsManager() {
 
         {settings.emailAlertsEnabled && (
           <div className="space-y-4 pt-2 border-t border-slate-100 dark:border-slate-800 animate-in fade-in-0 duration-200">
-            {/* Provider Selector */}
+            {/* Provider Selector with Custom Select Component */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                Email Service Provider
-              </label>
-              <select
+              <Select
+                label="Email Service Provider"
                 value={settings.emailProvider}
-                onChange={(e) => handleProviderChange(e.target.value)}
-                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-emerald-500/30"
-              >
-                {Object.entries(PROVIDER_PRESETS).map(([key, p]) => (
-                  <option key={key} value={key}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => handleProviderChange(val)}
+                options={Object.entries(PROVIDER_PRESETS).map(([key, p]) => ({
+                  value: key,
+                  label: p.name,
+                }))}
+              />
               {currentPreset.hint && (
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 flex items-center gap-1.5">
                   <HelpCircle className="h-3 w-3 shrink-0 text-brand-emerald-600" />
