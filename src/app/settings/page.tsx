@@ -3,8 +3,9 @@
 import React from 'react';
 import { DashboardNav } from '@/components/dashboard/dashboard-nav';
 import { CurrencySelector } from '@/components/settings/currency-selector';
+import { NotificationSettingsManager } from '@/components/settings/notification-settings';
 import { useCurrency, SUPPORTED_CURRENCIES } from '@/components/providers/currency-provider';
-import { Settings, Coins, ShieldCheck, Database, Sliders, CheckCircle2 } from 'lucide-react';
+import { Settings, Coins, ShieldCheck, Database, Sliders, CheckCircle2, Bell } from 'lucide-react';
 
 export default function SettingsPage() {
   const { currency, symbol, currencyConfig, formatAmount } = useCurrency();
@@ -75,6 +76,9 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
+
+        {/* Email & Telegram Multi-Channel Alerts Settings Card */}
+        <NotificationSettingsManager />
 
         {/* Database & Architecture Info */}
         <div className="p-6 rounded-2xl brand-glass border border-slate-200/80 dark:border-slate-800/80 shadow-sm space-y-4">

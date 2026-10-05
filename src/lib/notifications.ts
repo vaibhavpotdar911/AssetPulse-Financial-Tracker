@@ -14,6 +14,8 @@
 import { prisma } from '@/lib/db';
 import { calculateFixedDeposit, parseDateUTC, CompoundingFrequency } from '@/lib/financial';
 import { dispatchWebhookAlert } from '@/lib/webhook';
+import { sendMaturityEmail } from '@/lib/email';
+import { sendTelegramMaturityAlert } from '@/lib/telegram';
 
 // Re-export webhook alert dispatcher for Interface Contract 5 compliance
 export { dispatchWebhookAlert };
@@ -260,6 +262,79 @@ export async function scanMaturityAlertsForUser(
       if (webhookSuccess) {
         webhooksDispatched += 1;
       }
+    }
+
+    // 9. Dispatch User-Configured Email & Telegram Alerts (Non-blocking)
+    try {
+      const userSettings = await prisma.userSettings.findUnique({
+        where: { userId: deposit.userId },
+      });
+
+      if (userSettings) {
+        const shouldSendForThreshold =
+          (classification.type === 'MATURED_TODAY' && userSettings.notifyMaturedToday) ||
+          (classification.type === 'MATURING_7_DAYS' && userSettings.notify7Days) ||
+          (classification.type === 'MATURING_14_DAYS' && userSettings.notify14Days) ||
+          (classification.type === 'MATURING_30_DAYS' && userSettings.notify30Days);
+
+        const maturityDateStr = new Date(deposit.maturityDate).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          timeZone: 'UTC',
+        });
+
+        // Email Alert
+        if (shouldSendForThreshold && userSettings.emailAlertsEnabled && userSettings.smtpHost && userSettings.smtpUser && userSettings.smtpPassword) {
+          const recipientEmail = userSettings.emailTo || deposit.user?.email;
+          if (recipientEmail) {
+            sendMaturityEmail(
+              {
+                provider: userSettings.emailProvider,
+                host: userSettings.smtpHost,
+                port: userSettings.smtpPort || 587,
+                secure: userSettings.smtpSecure,
+                user: userSettings.smtpUser,
+                password: userSettings.smtpPassword,
+                from: userSettings.smtpFrom || userSettings.smtpUser,
+              },
+              {
+                to: recipientEmail,
+                recipientName: deposit.user?.name || undefined,
+                bankName: deposit.bankName,
+                accountNumber: deposit.accountNumber,
+                principalAmount: deposit.principalAmount,
+                maturityAmount: metrics.maturityAmount,
+                maturityDate: maturityDateStr,
+                daysRemaining,
+                eventType: classification.type,
+              }
+            ).catch((err) => console.error('[Email Notification Error]:', err));
+          }
+        }
+
+        // Telegram Alert
+        if (shouldSendForThreshold && userSettings.telegramAlertsEnabled && userSettings.telegramBotToken && userSettings.telegramChatId) {
+          sendTelegramMaturityAlert(
+            {
+              botToken: userSettings.telegramBotToken,
+              chatId: userSettings.telegramChatId,
+            },
+            {
+              bankName: deposit.bankName,
+              accountNumber: deposit.accountNumber,
+              principalAmount: deposit.principalAmount,
+              maturityAmount: metrics.maturityAmount,
+              maturityDate: maturityDateStr,
+              daysRemaining,
+              eventType: classification.type,
+            }
+          ).catch((err) => console.error('[Telegram Notification Error]:', err));
+        }
+      }
+    } catch (notificationDispatchErr) {
+      // Non-blocking: keep processing deposits even if an alert channel errors
+      console.warn('[Notification Multi-Channel Dispatch Warning]:', notificationDispatchErr);
     }
   }
 
