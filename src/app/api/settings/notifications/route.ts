@@ -53,14 +53,15 @@ export const PUT = withAuth(async (request: NextRequest, { user }) => {
       where: { userId: user.id },
     });
 
+    const isResend = body.emailProvider === 'resend';
     const updateData: any = {
       emailAlertsEnabled: Boolean(body.emailAlertsEnabled),
       emailProvider: body.emailProvider || 'custom_smtp',
       emailTo: body.emailTo?.trim() || user.email,
-      smtpHost: body.smtpHost?.trim() || null,
-      smtpPort: body.smtpPort ? parseInt(body.smtpPort, 10) : 587,
-      smtpSecure: Boolean(body.smtpSecure),
-      smtpUser: body.smtpUser?.trim() || null,
+      smtpHost: isResend ? 'smtp.resend.com' : (body.smtpHost?.trim() || null),
+      smtpPort: isResend ? 465 : (body.smtpPort ? parseInt(body.smtpPort, 10) : 587),
+      smtpSecure: isResend ? true : Boolean(body.smtpSecure),
+      smtpUser: isResend ? 'resend' : (body.smtpUser?.trim() || null),
       smtpFrom: body.smtpFrom?.trim() || null,
 
       telegramAlertsEnabled: Boolean(body.telegramAlertsEnabled),
@@ -123,9 +124,10 @@ export const POST = withAuth(async (request: NextRequest, { user }) => {
     });
 
     if (action === 'test-email') {
-      const host = body.smtpHost || existingSettings?.smtpHost;
-      const port = body.smtpPort ? parseInt(body.smtpPort, 10) : existingSettings?.smtpPort || 587;
-      const userParam = body.smtpUser || existingSettings?.smtpUser;
+      const isResend = body.emailProvider === 'resend' || existingSettings?.emailProvider === 'resend';
+      const host = isResend ? 'smtp.resend.com' : (body.smtpHost || existingSettings?.smtpHost);
+      const port = isResend ? 465 : (body.smtpPort ? parseInt(body.smtpPort, 10) : existingSettings?.smtpPort || 587);
+      const userParam = isResend ? 'resend' : (body.smtpUser || existingSettings?.smtpUser);
       const password = (body.smtpPassword && body.smtpPassword !== '••••••••')
         ? body.smtpPassword
         : existingSettings?.smtpPassword;
@@ -134,7 +136,7 @@ export const POST = withAuth(async (request: NextRequest, { user }) => {
 
       if (!host || !userParam || !password || !from) {
         return NextResponse.json(
-          { success: false, error: 'SMTP Host, User, Password, and From address are required for email test.' },
+          { success: false, error: isResend ? 'Resend API Key and From address are required for email test.' : 'SMTP Host, User, Password, and From address are required for email test.' },
           { status: 400 }
         );
       }
