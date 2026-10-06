@@ -125,7 +125,17 @@ try {
 if (process.argv.includes('--push')) {
   try {
     console.log('[AssetPulse DB] Pushing schema to database (npx prisma db push --skip-generate)...');
-    execSync('npx prisma db push --skip-generate', {
+    const forceReset = process.env.DB_FORCE_RESET === 'true' || process.argv.includes('--force-reset');
+    const acceptDataLoss = process.env.DB_ACCEPT_DATA_LOSS === 'true' || process.argv.includes('--accept-data-loss');
+
+    let pushCmd = 'npx prisma db push --skip-generate';
+    if (forceReset) {
+      pushCmd += ' --force-reset';
+    } else if (acceptDataLoss) {
+      pushCmd += ' --accept-data-loss';
+    }
+
+    execSync(pushCmd, {
       cwd: ROOT_DIR,
       stdio: 'inherit',
       env: { ...process.env, NPM_CONFIG_CACHE: '/tmp/npm-cache' },
