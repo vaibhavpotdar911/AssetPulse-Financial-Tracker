@@ -316,65 +316,93 @@ export function NotificationSettingsManager() {
               )}
             </div>
 
-            {/* SMTP Host and Port */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  SMTP Host *
-                </label>
-                <input
-                  type="text"
-                  required={settings.emailAlertsEnabled}
-                  value={settings.smtpHost}
-                  onChange={(e) => setSettings({ ...settings, smtpHost: e.target.value })}
-                  placeholder="e.g. smtp.email.us-ashburn-1.oci.oraclecloud.com"
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                />
+            {/* When Resend is selected, show streamlined API Key and Sender fields */}
+            {settings.emailProvider === 'resend' ? (
+              <div className="space-y-3 p-3.5 rounded-xl bg-purple-500/5 border border-purple-500/20">
+                <div className="flex items-center gap-2 text-xs font-bold text-purple-700 dark:text-purple-300">
+                  <Key className="h-4 w-4" />
+                  <span>Resend API Configuration</span>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Resend API Key *
+                  </label>
+                  <input
+                    type="password"
+                    required={settings.emailAlertsEnabled}
+                    value={settings.smtpPassword || ''}
+                    onChange={(e) => setSettings({ ...settings, smtpPassword: e.target.value })}
+                    placeholder="re_123456789_abcdefghijklmnopqrstuvwxyz"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-mono"
+                  />
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                    Get your API key from <a href="https://resend.com/api-keys" target="_blank" rel="noreferrer" className="text-purple-600 dark:text-purple-400 underline font-semibold">resend.com/api-keys</a>. Host (<code className="text-[10px]">smtp.resend.com:465</code>) and user (<code className="text-[10px]">resend</code>) are configured automatically.
+                  </p>
+                </div>
               </div>
+            ) : (
+              <>
+                {/* SMTP Host and Port */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      SMTP Host *
+                    </label>
+                    <input
+                      type="text"
+                      required={settings.emailAlertsEnabled}
+                      value={settings.smtpHost}
+                      onChange={(e) => setSettings({ ...settings, smtpHost: e.target.value })}
+                      placeholder="e.g. smtp.email.us-ashburn-1.oci.oraclecloud.com"
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Port *
-                </label>
-                <input
-                  type="number"
-                  required={settings.emailAlertsEnabled}
-                  value={settings.smtpPort}
-                  onChange={(e) => setSettings({ ...settings, smtpPort: parseInt(e.target.value, 10) || 587 })}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                />
-              </div>
-            </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Port *
+                    </label>
+                    <input
+                      type="number"
+                      required={settings.emailAlertsEnabled}
+                      value={settings.smtpPort}
+                      onChange={(e) => setSettings({ ...settings, smtpPort: parseInt(e.target.value, 10) || 587 })}
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                    />
+                  </div>
+                </div>
 
-            {/* Credentials: User & Password */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  SMTP Username / Access Key *
-                </label>
-                <input
-                  type="text"
-                  required={settings.emailAlertsEnabled}
-                  value={settings.smtpUser}
-                  onChange={(e) => setSettings({ ...settings, smtpUser: e.target.value })}
-                  placeholder="e.g. ocid1.user.oc1..aaaa@ocid1.tenancy..."
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                />
-              </div>
+                {/* Credentials: User & Password */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      SMTP Username / Access Key *
+                    </label>
+                    <input
+                      type="text"
+                      required={settings.emailAlertsEnabled}
+                      value={settings.smtpUser}
+                      onChange={(e) => setSettings({ ...settings, smtpUser: e.target.value })}
+                      placeholder="e.g. ocid1.user.oc1..aaaa@ocid1.tenancy..."
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  SMTP Password / Secret *
-                </label>
-                <input
-                  type="password"
-                  value={settings.smtpPassword || ''}
-                  onChange={(e) => setSettings({ ...settings, smtpPassword: e.target.value })}
-                  placeholder="••••••••"
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                />
-              </div>
-            </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      SMTP Password / Secret *
+                    </label>
+                    <input
+                      type="password"
+                      value={settings.smtpPassword || ''}
+                      onChange={(e) => setSettings({ ...settings, smtpPassword: e.target.value })}
+                      placeholder="••••••••"
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
 
             {/* From Address & To Address */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -411,7 +439,12 @@ export function NotificationSettingsManager() {
               <button
                 type="button"
                 onClick={handleTestEmail}
-                disabled={testingEmail || !settings.smtpHost || !settings.smtpUser}
+                disabled={
+                  testingEmail ||
+                  (settings.emailProvider === 'resend'
+                    ? !settings.smtpPassword || !settings.smtpFrom
+                    : !settings.smtpHost || !settings.smtpUser || !settings.smtpFrom)
+                }
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border border-emerald-500/40 text-brand-emerald-700 dark:text-brand-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 disabled:opacity-50 transition-colors"
               >
                 {testingEmail ? (

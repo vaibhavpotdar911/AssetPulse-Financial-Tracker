@@ -285,18 +285,25 @@ export async function scanMaturityAlertsForUser(
         });
 
         // Email Alert
-        if (shouldSendForThreshold && userSettings.emailAlertsEnabled && userSettings.smtpHost && userSettings.smtpUser && userSettings.smtpPassword) {
+        if (shouldSendForThreshold && userSettings.emailAlertsEnabled && (userSettings.smtpPassword || userSettings.emailProvider === 'resend')) {
           const recipientEmail = userSettings.emailTo || deposit.user?.email;
-          if (recipientEmail) {
+          const isResend = userSettings.emailProvider === 'resend';
+          const host = isResend ? 'smtp.resend.com' : userSettings.smtpHost;
+          const port = isResend ? 465 : (userSettings.smtpPort || 587);
+          const secure = isResend ? true : userSettings.smtpSecure;
+          const user = isResend ? 'resend' : userSettings.smtpUser;
+          const from = userSettings.smtpFrom || (isResend ? undefined : userSettings.smtpUser);
+
+          if (recipientEmail && host && user && userSettings.smtpPassword && from) {
             sendMaturityEmail(
               {
                 provider: userSettings.emailProvider,
-                host: userSettings.smtpHost,
-                port: userSettings.smtpPort || 587,
-                secure: userSettings.smtpSecure,
-                user: userSettings.smtpUser,
+                host,
+                port,
+                secure,
+                user,
                 password: userSettings.smtpPassword,
-                from: userSettings.smtpFrom || userSettings.smtpUser,
+                from,
               },
               {
                 to: recipientEmail,
