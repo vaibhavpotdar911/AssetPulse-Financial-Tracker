@@ -20,7 +20,7 @@
     "build": "npm run db:push && next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "vitest run",
+    "test": "npm run db:push && vitest run",
     "test:watch": "vitest",
     "db:prep": "node scripts/db-prep.js",
     "db:generate": "npx prisma generate",
