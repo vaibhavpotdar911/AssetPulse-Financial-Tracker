@@ -1,0 +1,51 @@
+name: Bug Report
+description: Create a report to help us improve AssetPulse
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: A clear and concise description of what the bug is.
+      placeholder: e.g., Maturity calculation produces NaN for 45-day tenure
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Provide step-by-step instructions to reproduce the problem.
+      placeholder: |
+        1. Navigate to Fixed Deposits
+        2. Click 'Add New Fixed Deposit'
+        3. Enter principal and select tenure...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Database Dialect & Environment
+      description: Which database setup are you running?
+      options:
+        - "Local Embedded SQLite"
+        - "External MySQL"
+        - "Docker Container"
+        - "Kubernetes (K8s)"
+    validations:
+      required: true
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context / Screenshots
+      description: Add any other context, browser console logs, or screenshots about the problem.
