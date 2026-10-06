@@ -28,11 +28,30 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      - name: Prepare & Synchronize Database
+        run: npm run db:push
+        env:
+          NODE_ENV: test
+          DB_TYPE: sqlite
+          DATABASE_URL: file:./fintrack.db
+
       - name: Run ESLint
         run: npm run lint
 
       - name: Run Test Suite (Vitest)
         run: npm test
+        env:
+          NODE_ENV: test
+          DB_TYPE: sqlite
+          DATABASE_URL: file:./fintrack.db
+          JWT_SECRET: test-jwt-secret-key-32-chars-minimum!
+          NEXTAUTH_SECRET: test-jwt-secret-key-32-chars-minimum!
 
       - name: Verify Production Build
         run: npm run build
+        env:
+          NODE_ENV: production
+          DB_TYPE: sqlite
+          DATABASE_URL: file:./fintrack.db
+          JWT_SECRET: test-jwt-secret-key-32-chars-minimum!
+          NEXTAUTH_SECRET: test-jwt-secret-key-32-chars-minimum!
