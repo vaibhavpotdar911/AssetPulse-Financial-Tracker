@@ -1,13 +1,16 @@
 # AssetPulse 📈🛡️
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
+[![CI Quality Gate](https://github.com/vaibhavpotdar911/AssetPulse-Financial-Tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/vaibhavpotdar911/AssetPulse-Financial-Tracker/actions/workflows/ci.yml)
 [![Docker Image](https://img.shields.io/badge/Docker-GHCR%20Ready-2496ED?logo=docker&logoColor=white)](https://github.com/vaibhavpotdar911/AssetPulse-Financial-Tracker/pkgs/container/assetpulse-financial-tracker)
 [![Next.js](https://img.shields.io/badge/Next.js-14.2+-black.svg)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6+-blue.svg)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4+-38bdf8.svg)](https://tailwindcss.com/)
 [![Prisma ORM](https://img.shields.io/badge/Prisma-5.21+-5a67d8.svg)](https://www.prisma.io/)
 [![Database](https://img.shields.io/badge/Database-SQLite%20%7C%20MySQL-emerald.svg)](#dual-database-engine)
-[![Tests](https://img.shields.io/badge/Tests-Vitest%20Passing-brightgreen.svg)](#testing--quality-verification)
+[![Tests](https://img.shields.io/badge/Tests-342%20Passing-brightgreen.svg)](#testing--quality-verification)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 
 > **AssetPulse** is an open-source, lightweight personal financial asset and Fixed Deposit (FD) tracking platform built with Next.js, TypeScript, Tailwind CSS, and Prisma. Features include bidirectional financial interest calculations, immutable disposition audit logging, custom date pickers, top-ranked user bank memory, and multi-channel maturity alert notifications via Oracle Cloud (OCI) free email delivery, custom SMTP, and Telegram bots. Compatible out-of-the-box with zero-config embedded SQLite and plug-and-play external MySQL.
 
