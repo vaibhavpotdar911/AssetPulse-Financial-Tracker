@@ -26,6 +26,7 @@ model User {
   auditLogs     AuditLog[]
   notifications Notification[]
   settings      UserSettings?
+  sipSchedules  SipSchedule[]
 
   @@map("users")
 }
@@ -157,5 +158,61 @@ model UserSettings {
   updatedAt             DateTime @updatedAt
 
   @@map("user_settings")
+}
+
+// -------------------------------------------------------------
+// 6. SipSchedule & SipExecution Models (Recurring Deposits & SIPs)
+// -------------------------------------------------------------
+model SipSchedule {
+  id                   String         @id @default(uuid())
+  userId               String
+  name                 String         // e.g. "HDFC Bluechip SIP" or "SBI 1-Year Recurring Deposit"
+  assetType            String         // 'MUTUAL_FUND' | 'RECURRING_DEPOSIT' | 'STOCK'
+  frequency            String         // 'DAILY' | 'WEEKLY' | 'MONTHLY'
+  dayOfWeek            Int?           // 1 (Mon) - 7 (Sun) for weekly SIP
+  dayOfMonth           Int?           // 1 - 31 for monthly SIP
+  installmentAmount    Float
+  annualRate           Float?         // For Recurring Deposits (e.g. 7.1%)
+  compoundingFrequency String?        // For Recurring Deposits ('MONTHLY' | 'QUARTERLY')
+  tenureMonths         Int?           // For Recurring Deposits (e.g. 12, 24, 36)
+  targetMaturityAmount Float?         // Precalculated maturity for RD
+  startDate            DateTime
+  endDate              DateTime?      // Optional end date (null = perpetual)
+  schemeCode           String?        // AMFI Scheme Code for Mutual Funds
+  schemeName           String?        // Scheme or Bank name
+  folioNumber          String?        // Account / Folio number
+  status               String         @default("ACTIVE") // 'ACTIVE' | 'PAUSED' | 'COMPLETED'
+  totalInvested        Float          @default(0)
+  installmentsExecuted Int            @default(0)
+  nextExecutionDate    DateTime
+  notes                String?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  user                 User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  executions           SipExecution[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([nextExecutionDate])
+  @@index([assetType])
+  @@map("sip_schedules")
+}
+
+model SipExecution {
+  id             String      @id @default(uuid())
+  sipScheduleId  String
+  executionDate  DateTime
+  amount         Float
+  navOrPrice     Float?
+  unitsAllocated Float?
+  notes          String?
+  createdAt      DateTime    @default(now())
+
+  sipSchedule    SipSchedule @relation(fields: [sipScheduleId], references: [id], onDelete: Cascade)
+
+  @@index([sipScheduleId])
+  @@index([executionDate])
+  @@map("sip_executions")
 }
 
