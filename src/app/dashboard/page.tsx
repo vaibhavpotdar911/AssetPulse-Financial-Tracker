@@ -20,22 +20,36 @@ import {
   Loader2,
   AlertOctagon,
   Clock,
+  Coins,
 } from 'lucide-react';
 
 export default function DashboardPage() {
   const { symbol, formatAmount } = useCurrency();
   const [deposits, setDeposits] = useState<any[]>([]);
+  const [sips, setSips] = useState<any[]>([]);
+  const [totalMonthlySip, setTotalMonthlySip] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedDepositForClose, setSelectedDepositForClose] = useState<any | null>(null);
 
-  const fetchDeposits = async () => {
+  const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/deposits?sortBy=maturityDate&sortOrder=asc');
-      if (res.ok) {
-        const data = await res.json();
+      const [depRes, sipRes] = await Promise.all([
+        fetch('/api/deposits?sortBy=maturityDate&sortOrder=asc'),
+        fetch('/api/sips'),
+      ]);
+
+      if (depRes.ok) {
+        const data = await depRes.json();
         setDeposits(data);
+      }
+      if (sipRes.ok) {
+        const sData = await sipRes.json();
+        if (sData.success) {
+          setSips(sData.sips || []);
+          setTotalMonthlySip(sData.totalMonthlyCommitment || 0);
+        }
       }
     } catch {
       // Offline fallback
@@ -45,7 +59,7 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    fetchDeposits();
+    fetchDashboardData();
   }, []);
 
   // Overview metrics calculations
@@ -53,6 +67,11 @@ export default function DashboardPage() {
   const totalPrincipal = activeDeposits.reduce((sum, d) => sum + (d.principalAmount || 0), 0);
   const totalAccruedInterest = activeDeposits.reduce((sum, d) => sum + (d.accruedInterest || 0), 0);
   const totalMaturityValue = activeDeposits.reduce((sum, d) => sum + (d.maturityAmount || 0), 0);
+
+  // SIP & Recurring Deposit additions
+  const totalSipInvested = sips.reduce((sum, s) => sum + (s.totalInvested || 0), 0);
+  const totalNetWorth = totalPrincipal + totalAccruedInterest + totalSipInvested;
+
   const maturedDeposits = activeDeposits.filter((d) => d.isMatured || d.daysRemaining === 0);
   const urgent7DaysDeposits = activeDeposits.filter((d) => !d.isMatured && d.daysRemaining > 0 && d.daysRemaining <= 7);
   const maturedCount = maturedDeposits.length;
@@ -216,23 +235,23 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* 5 Overview Metric Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          {/* Card 1: Total Portfolio Principal */}
-          <div className="p-5 rounded-2xl brand-glass border border-slate-200/80 dark:border-slate-800/80 shadow-sm">
+        {/* Wealth Command Center — Hero Net Worth & Allocation Strip */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Card 1: Total Portfolio Net Worth */}
+          <div className="p-5 rounded-2xl brand-glass border border-slate-200/80 dark:border-slate-800/80 shadow-sm relative overflow-hidden">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Total Principal
+                Total Net Worth
               </span>
               <div className="h-8 w-8 rounded-lg bg-emerald-500/10 text-brand-emerald-600 flex items-center justify-center">
                 <Wallet className="h-4 w-4" />
               </div>
             </div>
-            <div className="text-xl sm:text-2xl font-bold font-mono text-slate-950 dark:text-white">
-              {formatAmount(totalPrincipal)}
+            <div className="text-2xl sm:text-3xl font-black font-mono text-slate-950 dark:text-white">
+              {formatAmount(totalNetWorth)}
             </div>
-            <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">
-              Invested principal capital
+            <span className="text-[11px] text-brand-emerald-600 dark:text-brand-emerald-400 font-semibold mt-1 block">
+              FDs + Accrued Yield + SIP Capital
             </span>
           </div>
 
@@ -240,71 +259,53 @@ export default function DashboardPage() {
           <div className="p-5 rounded-2xl brand-glass border border-slate-200/80 dark:border-slate-800/80 shadow-sm">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Accrued Interest
+                Accrued FD Interest
               </span>
               <div className="h-8 w-8 rounded-lg bg-emerald-500/10 text-brand-emerald-600 flex items-center justify-center">
                 <TrendingUp className="h-4 w-4" />
               </div>
             </div>
-            <div className="text-xl sm:text-2xl font-bold font-mono text-brand-emerald-600 dark:text-brand-emerald-400">
+            <div className="text-2xl sm:text-3xl font-black font-mono text-brand-emerald-600 dark:text-brand-emerald-400">
               +{formatAmount(totalAccruedInterest)}
             </div>
             <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">
-              Earned up to today
+              Earned yield up to today
             </span>
           </div>
 
-          {/* Card 3: Estimated Maturity Value */}
+          {/* Card 3: Monthly SIP Commitment */}
           <div className="p-5 rounded-2xl brand-glass border border-slate-200/80 dark:border-slate-800/80 shadow-sm">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Est. Maturity Value
+                Monthly SIP Outflow
               </span>
               <div className="h-8 w-8 rounded-lg bg-indigo-500/10 text-indigo-600 flex items-center justify-center">
                 <PiggyBank className="h-4 w-4" />
               </div>
             </div>
-            <div className="text-xl sm:text-2xl font-bold font-mono text-indigo-600 dark:text-indigo-400">
-              {formatAmount(totalMaturityValue)}
+            <div className="text-2xl sm:text-3xl font-black font-mono text-indigo-600 dark:text-indigo-400">
+              {formatAmount(totalMonthlySip)}
             </div>
             <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">
-              Principal + guaranteed payout
+              {sips.filter((s) => s.status === 'ACTIVE').length} active recurring schedules
             </span>
           </div>
 
-          {/* Card 4: Active Deposits Count */}
+          {/* Card 4: Active Contracts Count */}
           <div className="p-5 rounded-2xl brand-glass border border-slate-200/80 dark:border-slate-800/80 shadow-sm">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Active Deposits
+                Active Contracts
               </span>
               <div className="h-8 w-8 rounded-lg bg-emerald-500/10 text-brand-emerald-600 flex items-center justify-center">
                 <ShieldCheck className="h-4 w-4" />
               </div>
             </div>
-            <div className="text-xl sm:text-2xl font-bold text-slate-950 dark:text-white">
-              {activeDeposits.length}
+            <div className="text-2xl sm:text-3xl font-black text-slate-950 dark:text-white">
+              {activeDeposits.length + sips.filter((s) => s.status === 'ACTIVE').length}
             </div>
             <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">
-              Yield-generating contracts
-            </span>
-          </div>
-
-          {/* Card 5: Matured Deposits Count */}
-          <div className="p-5 rounded-2xl brand-glass border border-slate-200/80 dark:border-slate-800/80 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Matured Deposits
-              </span>
-              <div className="h-8 w-8 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center">
-                <AlertCircle className="h-4 w-4" />
-              </div>
-            </div>
-            <div className={`text-xl sm:text-2xl font-bold ${maturedCount > 0 ? 'text-amber-600' : 'text-slate-950 dark:text-white'}`}>
-              {maturedCount}
-            </div>
-            <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">
-              Ready for rollover/liquidation
+              {activeDeposits.length} FDs • {sips.filter((s) => s.status === 'ACTIVE').length} SIPs/RDs
             </span>
           </div>
         </div>
@@ -442,18 +443,80 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+
+        {/* SIP Schedules & Upcoming Outflow Calendar Preview */}
+        <div className="brand-glass rounded-2xl border border-slate-200/80 dark:border-slate-800/80 overflow-hidden shadow-sm">
+          <div className="p-5 border-b border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-bold text-slate-950 dark:text-white flex items-center gap-2">
+                <Coins className="h-4 w-4 text-brand-emerald-600" />
+                <span>Upcoming Systematic Investments & Recurring Outflows</span>
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Scheduled SIPs and Recurring Deposit deductions
+              </p>
+            </div>
+            <Link
+              href="/sips"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-brand-emerald-600 dark:text-brand-emerald-400 hover:underline"
+            >
+              <span>Manage SIPs</span>
+              <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+
+          {sips.length === 0 ? (
+            <div className="p-8 text-center text-slate-400 space-y-2">
+              <Coins className="h-8 w-8 mx-auto opacity-50" />
+              <p className="text-xs">No active SIP or RD schedules set up yet.</p>
+              <Link
+                href="/sips"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-500/10 text-brand-emerald-700 dark:text-brand-emerald-300 border border-emerald-500/30"
+              >
+                <Plus className="h-3 w-3" />
+                <span>Create SIP Schedule</span>
+              </Link>
+            </div>
+          ) : (
+            <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {sips.slice(0, 6).map((sip) => (
+                <div
+                  key={sip.id}
+                  className="p-4 rounded-xl bg-slate-50/70 dark:bg-slate-900/70 border border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between gap-3 text-xs"
+                >
+                  <div>
+                    <span className="font-bold text-slate-900 dark:text-white block line-clamp-1">
+                      {sip.name}
+                    </span>
+                    <span className="text-[11px] text-slate-400 block">
+                      Due: {new Date(sip.nextExecutionDate).toLocaleDateString()} • {sip.frequency.toLowerCase()}
+                    </span>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="font-bold font-mono text-brand-emerald-600 dark:text-brand-emerald-400 block">
+                      {formatAmount(sip.installmentAmount)}
+                    </span>
+                    <span className="text-[10px] text-slate-400">
+                      {sip.assetType.replace('_', ' ')}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </main>
 
       <DepositModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        onSuccess={fetchDeposits}
+        onSuccess={fetchDashboardData}
       />
 
       <DispositionModal
         isOpen={Boolean(selectedDepositForClose)}
         onClose={() => setSelectedDepositForClose(null)}
-        onSuccess={fetchDeposits}
+        onSuccess={fetchDashboardData}
         deposit={selectedDepositForClose}
       />
     </div>

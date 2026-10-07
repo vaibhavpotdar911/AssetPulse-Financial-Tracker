@@ -290,3 +290,116 @@ export function calculateTenureBreakdown(startDateStr: string | Date, maturityDa
   };
 }
 
+// ============================================================================
+// 7. Recurring Deposit (RD) & SIP Financial Calculation Engine
+// ============================================================================
+
+export interface RecurringDepositParams {
+  monthlyInstallment: number;
+  annualRate: number; // e.g. 7.1 for 7.1%
+  tenureMonths: number;
+  compoundingFrequency?: 'MONTHLY' | 'QUARTERLY'; // Indian banks typically compound RD quarterly (n=4)
+}
+
+export interface RecurringDepositResult {
+  totalDepositAmount: number;     // monthlyInstallment * tenureMonths
+  maturityAmount: number;         // Total payout at maturity
+  totalInterestEarned: number;    // maturityAmount - totalDepositAmount
+}
+
+/**
+ * Calculates Recurring Deposit (RD) maturity payout based on quarterly/monthly compounding standard.
+ * Formula: M = Sum over i=1..N of P * (1 + r/n)^(n * (N - i + 1)/12)
+ * Where:
+ *  P = monthly installment
+ *  r = annual interest rate as decimal (annualRate / 100)
+ *  n = compounding frequency (4 for quarterly, 12 for monthly)
+ *  N = total tenure in months
+ */
+export function calculateRecurringDeposit(params: RecurringDepositParams): RecurringDepositResult {
+  const { monthlyInstallment, annualRate, tenureMonths } = params;
+  const compoundingFrequency = params.compoundingFrequency || 'QUARTERLY';
+  const n = compoundingFrequency === 'QUARTERLY' ? 4 : 12;
+  const r = annualRate / 100;
+
+  if (monthlyInstallment <= 0 || tenureMonths <= 0) {
+    return {
+      totalDepositAmount: 0,
+      maturityAmount: 0,
+      totalInterestEarned: 0,
+    };
+  }
+
+  let totalMaturity = 0;
+  for (let i = 1; i <= tenureMonths; i++) {
+    // Tenure remaining in years for this installment
+    const remainingMonths = tenureMonths - i + 1;
+    const tYears = remainingMonths / 12;
+    const installmentMaturity = monthlyInstallment * Math.pow(1 + r / n, n * tYears);
+    totalMaturity += installmentMaturity;
+  }
+
+  const roundedMaturity = roundCurrency(totalMaturity);
+  const totalDepositAmount = roundCurrency(monthlyInstallment * tenureMonths);
+  const totalInterestEarned = roundCurrency(roundedMaturity - totalDepositAmount);
+
+  return {
+    totalDepositAmount,
+    maturityAmount: roundedMaturity,
+    totalInterestEarned,
+  };
+}
+
+export type SipFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY';
+
+/**
+ * Computes next execution date for a SIP schedule (Daily, Weekly, Monthly) given a reference date.
+ */
+export function calculateNextSipDate(options: {
+  frequency: SipFrequency;
+  fromDate: string | Date;
+  dayOfWeek?: number;  // 1 (Mon) - 7 (Sun)
+  dayOfMonth?: number; // 1 - 31
+}): Date {
+  const current = parseDateUTC(options.fromDate);
+  const next = new Date(current.getTime());
+
+  switch (options.frequency) {
+    case 'DAILY': {
+      next.setUTCDate(next.getUTCDate() + 1);
+      break;
+    }
+
+    case 'WEEKLY': {
+      const targetDay = options.dayOfWeek ? Math.min(7, Math.max(1, options.dayOfWeek)) : 1; // Default Monday
+      // In JS Date, getUTCDay() is 0 (Sun) .. 6 (Sat). Map 1..7 (Mon..Sun) to JS getUTCDay()
+      const jsTargetDay = targetDay === 7 ? 0 : targetDay;
+
+      // Move forward at least 1 day
+      next.setUTCDate(next.getUTCDate() + 1);
+      while (next.getUTCDay() !== jsTargetDay) {
+        next.setUTCDate(next.getUTCDate() + 1);
+      }
+      break;
+    }
+
+    case 'MONTHLY': {
+      const targetDay = options.dayOfMonth ? Math.min(31, Math.max(1, options.dayOfMonth)) : 1;
+      const targetMonth = next.getUTCMonth() + 1;
+      const targetYear = next.getUTCFullYear();
+
+      // Check how many days in the target month to prevent overflow
+      const maxDaysInTargetMonth = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate();
+      const clampedDay = Math.min(targetDay, maxDaysInTargetMonth);
+
+      next.setUTCFullYear(targetYear, targetMonth, clampedDay);
+      break;
+    }
+
+    default:
+      next.setUTCDate(next.getUTCDate() + 30);
+  }
+
+  return next;
+}
+

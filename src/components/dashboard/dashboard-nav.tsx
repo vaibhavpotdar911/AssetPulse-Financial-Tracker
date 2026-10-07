@@ -32,8 +32,9 @@ export function DashboardNav() {
   };
 
   const navItems = [
-    { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/dashboard', label: 'Wealth Dashboard', icon: LayoutDashboard },
     { href: '/deposits', label: 'Fixed Deposits', icon: Shield },
+    { href: '/sips', label: 'SIPs & RDs', icon: Coins },
     { href: '/audit-logs', label: 'Audit Ledger', icon: History },
     { href: '/settings', label: 'Settings', icon: Sliders },
   ];
