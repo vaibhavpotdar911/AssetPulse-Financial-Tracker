@@ -9,6 +9,40 @@ import { Settings, Coins, ShieldCheck, Database, Sliders, CheckCircle2, Bell } f
 
 export default function SettingsPage() {
   const { currency, symbol, currencyConfig, formatAmount } = useCurrency();
+  const [dbStatus, setDbStatus] = React.useState<{
+    loading: boolean;
+    connected: boolean;
+    provider: string;
+    dialectLabel: string;
+    target: string;
+    error?: string | null;
+  }>({
+    loading: true,
+    connected: true,
+    provider: 'sqlite',
+    dialectLabel: 'SQLite (fintrack.db)',
+    target: 'local file',
+  });
+
+  React.useEffect(() => {
+    fetch('/api/health/db')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setDbStatus({
+            loading: false,
+            connected: data.connected,
+            provider: data.provider,
+            dialectLabel: data.dialectLabel,
+            target: data.target,
+            error: data.error,
+          });
+        }
+      })
+      .catch(() => {
+        setDbStatus((prev) => ({ ...prev, loading: false }));
+      });
+  }, []);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col">
@@ -97,10 +131,19 @@ export default function SettingsPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-            <div className="p-3.5 rounded-xl bg-white/50 dark:bg-slate-900/50 border border-slate-200/70 dark:border-slate-800/70 flex items-center gap-2.5">
-              <CheckCircle2 className="h-4 w-4 text-brand-emerald-600 shrink-0" />
-              <span className="text-xs text-slate-700 dark:text-slate-300">
-                Active Dialect: <strong>SQLite (fintrack.db)</strong>
+            <div className="p-3.5 rounded-xl bg-white/50 dark:bg-slate-900/50 border border-slate-200/70 dark:border-slate-800/70 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <CheckCircle2 className={`h-4 w-4 shrink-0 ${dbStatus.connected ? 'text-brand-emerald-600' : 'text-rose-500'}`} />
+                <span className="text-xs text-slate-700 dark:text-slate-300">
+                  Active Dialect: <strong>{dbStatus.dialectLabel}</strong>
+                </span>
+              </div>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                dbStatus.connected
+                  ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                  : 'bg-rose-500/10 text-rose-600 border border-rose-500/20'
+              }`}>
+                {dbStatus.connected ? 'Connected' : 'Offline'}
               </span>
             </div>
             <div className="p-3.5 rounded-xl bg-white/50 dark:bg-slate-900/50 border border-slate-200/70 dark:border-slate-800/70 flex items-center gap-2.5">
