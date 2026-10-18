@@ -16,7 +16,7 @@ import path from 'node:path';
 import { describe, it, expect } from '../helpers/test-runner.ts';
 import { DbHelper } from '../helpers/db-helper.ts';
 
-const PROJECT_ROOT = '/Users/vaibhavpotdar/Desktop/FinTrack';
+const PROJECT_ROOT = process.env.PROJECT_ROOT || process.cwd();
 
 describe('Tier 1: Feature Coverage — R6 Dual-Database Connectivity (SQLite & MySQL)', () => {
   const dbHelper = new DbHelper(PROJECT_ROOT);

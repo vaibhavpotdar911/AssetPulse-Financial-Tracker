@@ -126,7 +126,7 @@ export function formatWebhookPayload(
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: `*${event === 'MATURED_TODAY' ? 'Deposit Matured' : 'Upcoming Maturity Alert'}*: ${bankName} (${accountNumber})\n*Principal*: $${principal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n*Payout*: $${maturityAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n*Maturity Date*: ${maturityDateStr}\n*Days Remaining*: ${daysRemaining}\n\n>${message}`,
+              text: `*${event === 'MATURED_TODAY' ? 'Deposit Matured' : 'Upcoming Maturity Alert'}*: ${bankName} (${accountNumber})\n*Principal*: $${principal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n*Payout*: $${maturityAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n*Maturity Date*: ${maturityDateStr}\n*Days Remaining*: ${daysRemaining}\n\n>${message}`,
             },
           },
         ],
@@ -143,8 +143,8 @@ export function formatWebhookPayload(
             fields: [
               { name: 'Bank', value: bankName, inline: true },
               { name: 'Account', value: accountNumber, inline: true },
-              { name: 'Principal', value: `$${principal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, inline: true },
-              { name: 'Estimated Payout', value: `$${maturityAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, inline: true },
+              { name: 'Principal', value: `$${principal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, inline: true },
+              { name: 'Estimated Payout', value: `$${maturityAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, inline: true },
               { name: 'Maturity Date', value: maturityDateStr, inline: true },
               { name: 'Days Remaining', value: String(daysRemaining), inline: true },
             ],
@@ -156,7 +156,7 @@ export function formatWebhookPayload(
 
     case 'telegram':
       return {
-        text: `🚨 *AssetPulse Maturity Alert*\n\n🏦 *Bank*: ${bankName}\n📄 *Account*: \`${accountNumber}\`\n💰 *Principal*: $${principal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n💵 *Estimated Payout*: $${maturityAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n📅 *Maturity Date*: ${maturityDateStr}\n⏳ *Days Left*: ${daysRemaining}\n\n_${message}_`,
+        text: `🚨 *AssetPulse Maturity Alert*\n\n🏦 *Bank*: ${bankName}\n📄 *Account*: \`${accountNumber}\`\n💰 *Principal*: $${principal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n💵 *Estimated Payout*: $${maturityAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n📅 *Maturity Date*: ${maturityDateStr}\n⏳ *Days Left*: ${daysRemaining}\n\n_${message}_`,
         parse_mode: 'Markdown',
       };
 

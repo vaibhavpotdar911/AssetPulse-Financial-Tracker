@@ -206,7 +206,7 @@ export function InstitutionSelect({
   };
 
   return (
-    <div ref={ref} className={`relative ${className}`}>
+    <div ref={ref} className={`relative ${open ? 'z-50' : 'z-10'} ${className}`}>
       {label && (
         <label htmlFor={id} className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
           {label} {required && <span className="text-rose-500">*</span>}

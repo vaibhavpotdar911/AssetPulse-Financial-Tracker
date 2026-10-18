@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { DashboardNav } from '@/components/dashboard/dashboard-nav';
+import { RenewSipModal } from '@/components/sips/renew-sip-modal';
 import { useCurrency } from '@/components/providers/currency-provider';
 import {
   Coins,
@@ -21,6 +22,7 @@ import {
   HelpCircle,
   Loader2,
   CalendarDays,
+  RotateCw,
 } from 'lucide-react';
 
 interface SipItem {
@@ -59,6 +61,7 @@ export default function SipsPage() {
   const [totalCommitment, setTotalCommitment] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [executingId, setExecutingId] = useState<string | null>(null);
+  const [renewingSip, setRenewingSip] = useState<any | null>(null);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -363,6 +366,13 @@ export default function SipsPage() {
 
                       <div className="flex items-center gap-1">
                         <button
+                          onClick={() => setRenewingSip(sip)}
+                          title="Renew schedule with same account / folio number"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-brand-emerald-600 dark:hover:text-brand-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors"
+                        >
+                          <RotateCw className="h-3.5 w-3.5" />
+                        </button>
+                        <button
                           onClick={() => handleToggleStatus(sip)}
                           title={sip.status === 'ACTIVE' ? 'Pause SIP' : 'Resume SIP'}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
@@ -574,6 +584,14 @@ export default function SipsPage() {
           </div>
         </div>
       )}
+
+      {/* Modal for Renewing SIP / RD */}
+      <RenewSipModal
+        isOpen={Boolean(renewingSip)}
+        onClose={() => setRenewingSip(null)}
+        onSuccess={fetchSips}
+        sip={renewingSip}
+      />
     </div>
   );
 }

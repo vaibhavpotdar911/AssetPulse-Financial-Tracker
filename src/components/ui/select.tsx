@@ -109,7 +109,7 @@ export function Select({
     : 'px-3.5 py-2 text-sm';
 
   return (
-    <div ref={ref} className={`relative ${className}`}>
+    <div ref={ref} className={`relative ${open ? 'z-50' : 'z-10'} ${className}`}>
       {label && (
         <label
           htmlFor={id}
