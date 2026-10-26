@@ -5,6 +5,7 @@ import { DashboardNav } from '@/components/dashboard/dashboard-nav';
 import { DepositModal } from '@/components/deposits/deposit-modal';
 import { DispositionModal } from '@/components/deposits/disposition-modal';
 import { RenewModal } from '@/components/deposits/renew-modal';
+import { RollbackModal } from '@/components/deposits/rollback-modal';
 import { Select } from '@/components/ui/select';
 import { useCurrency } from '@/components/providers/currency-provider';
 import {
@@ -44,6 +45,7 @@ export default function DepositsPage() {
   const [editingDeposit, setEditingDeposit] = useState<any | null>(null);
   const [closingDeposit, setClosingDeposit] = useState<any | null>(null);
   const [renewingDeposit, setRenewingDeposit] = useState<any | null>(null);
+  const [rollbackDeposit, setRollbackDeposit] = useState<any | null>(null);
 
   const fetchDeposits = async () => {
     try {
@@ -529,6 +531,10 @@ export default function DepositsPage() {
                         className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
                           fd.status === 'ACTIVE'
                             ? 'bg-emerald-500/10 text-brand-emerald-700 dark:text-brand-emerald-300 border border-emerald-500/30'
+                            : fd.status === 'MATURED'
+                            ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30'
+                            : fd.status === 'LIQUIDATED'
+                            ? 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/30'
                             : 'bg-slate-500/10 text-slate-500 border border-slate-500/30'
                         }`}
                       >
@@ -611,7 +617,27 @@ export default function DepositsPage() {
                         </button>
                       </>
                     ) : (
-                      <span className="text-[11px] text-slate-400 italic">Archived in immutable ledger</span>
+                      <div className="w-full flex items-center justify-between">
+                        <span className="text-[11px] text-slate-400 italic">Archived</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setRollbackDeposit(fd)}
+                            className="inline-flex items-center gap-1 font-semibold text-purple-600 dark:text-purple-400 hover:text-purple-700 text-xs px-2 py-1 rounded hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-colors"
+                            title="Rollback closed deposit back to active or matured"
+                          >
+                            <RotateCcw className="h-3 w-3" />
+                            <span>Rollback</span>
+                          </button>
+                          <button
+                            onClick={() => setRenewingDeposit(fd)}
+                            className="inline-flex items-center gap-1 font-semibold text-brand-emerald-700 dark:text-brand-emerald-400 hover:text-brand-emerald-800 text-xs px-2 py-1 rounded hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors"
+                            title="Renew deposit"
+                          >
+                            <RotateCw className="h-3 w-3" />
+                            <span>Renew</span>
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -686,7 +712,13 @@ export default function DepositsPage() {
 
                         <td className="py-3.5 px-4">
                           {isClosed ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-500/10 text-slate-500 border border-slate-500/30">
+                            <span
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                                fd.status === 'LIQUIDATED'
+                                  ? 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30'
+                                  : 'bg-slate-500/10 text-slate-500 border border-slate-500/30'
+                              }`}
+                            >
                               {fd.status}
                             </span>
                           ) : (
@@ -733,7 +765,24 @@ export default function DepositsPage() {
                               </button>
                             </div>
                           ) : (
-                            <span className="text-slate-400 text-[11px]">—</span>
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => setRollbackDeposit(fd)}
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-purple-600 dark:text-purple-400 hover:text-purple-700 px-2 py-1 rounded hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-colors"
+                                title="Rollback closed deposit back to active or matured"
+                              >
+                                <RotateCcw className="h-3 w-3" />
+                                <span>Rollback</span>
+                              </button>
+                              <button
+                                onClick={() => setRenewingDeposit(fd)}
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-brand-emerald-700 dark:text-brand-emerald-400 hover:text-brand-emerald-800 px-2 py-1 rounded hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors"
+                                title="Renew with same account number"
+                              >
+                                <RotateCw className="h-3 w-3" />
+                                <span>Renew</span>
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -769,6 +818,14 @@ export default function DepositsPage() {
         onClose={() => setRenewingDeposit(null)}
         onSuccess={fetchDeposits}
         deposit={renewingDeposit}
+      />
+
+      <RollbackModal
+        isOpen={Boolean(rollbackDeposit)}
+        onClose={() => setRollbackDeposit(null)}
+        onSuccess={fetchDeposits}
+        deposit={rollbackDeposit}
+        onRenew={(dep) => setRenewingDeposit(dep)}
       />
     </div>
   );

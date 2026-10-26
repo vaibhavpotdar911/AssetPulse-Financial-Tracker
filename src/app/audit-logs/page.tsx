@@ -21,6 +21,7 @@ const ACTION_FILTER_OPTIONS = [
   { value: 'UPDATED', label: 'UPDATED (Terms Modified)' },
   { value: 'CLOSED', label: 'CLOSED (Tenure Completed)' },
   { value: 'LIQUIDATED', label: 'LIQUIDATED (Early Exit)' },
+  { value: 'ROLLED_BACK', label: 'ROLLED_BACK (Reopened / Corrected)' },
   { value: 'DELETED', label: 'DELETED' },
 ];
 
@@ -76,6 +77,9 @@ export default function AuditLogsPage() {
         return 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30';
       case 'DELETED':
         return 'bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/30';
+      case 'ROLLED_BACK':
+      case 'REOPENED':
+        return 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30';
       default:
         return 'bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/30';
     }

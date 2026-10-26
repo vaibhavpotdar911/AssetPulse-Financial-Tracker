@@ -30,14 +30,20 @@ export type AuditAction =
   | 'LIQUIDATE'
   | 'LIQUIDATED'
   | 'REINVEST'
-  | 'REINVESTED';
+  | 'REINVESTED'
+  | 'ROLLBACK'
+  | 'ROLLED_BACK'
+  | 'REOPEN'
+  | 'REOPENED';
 
 export type CanonicalAuditAction =
   | 'CREATED'
   | 'UPDATED'
   | 'CLOSED'
   | 'LIQUIDATED'
-  | 'DELETED';
+  | 'DELETED'
+  | 'ROLLED_BACK'
+  | 'REOPENED';
 
 export type DispositionType =
   | 'MATURED_REINVESTED'
@@ -135,6 +141,12 @@ export function normalizeAuditAction(rawAction: string): CanonicalAuditAction {
     case 'DELETE':
     case 'DELETED':
       return 'DELETED';
+    case 'ROLLBACK':
+    case 'ROLLED_BACK':
+      return 'ROLLED_BACK';
+    case 'REOPEN':
+    case 'REOPENED':
+      return 'REOPENED';
     default:
       return (upper as CanonicalAuditAction) || 'UPDATED';
   }
@@ -432,6 +444,8 @@ export function buildAuditLogWhereInput(
       where.action = { in: ['LIQUIDATE', 'LIQUIDATED'] };
     } else if (['DELETE', 'DELETED'].includes(rawAction)) {
       where.action = { in: ['DELETE', 'DELETED'] };
+    } else if (['ROLLBACK', 'ROLLED_BACK', 'REOPEN', 'REOPENED'].includes(rawAction)) {
+      where.action = { in: ['ROLLBACK', 'ROLLED_BACK', 'REOPEN', 'REOPENED'] };
     } else if (['REINVEST', 'REINVESTED'].includes(rawAction)) {
       where.OR = [
         { action: { in: ['REINVEST', 'REINVESTED'] } },
