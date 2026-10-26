@@ -72,3 +72,4 @@ next-env.d.ts
 
 # Agent Metadata & Internal Transcripts (Workspace convention)
 .agents/
+.agent/

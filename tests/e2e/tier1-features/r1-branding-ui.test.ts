@@ -16,7 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, it, expect } from '../helpers/test-runner.ts';
 
-const PROJECT_ROOT = '/Users/vaibhavpotdar/Desktop/FinTrack';
+const PROJECT_ROOT = process.env.PROJECT_ROOT || process.cwd();
 
 describe('Tier 1: Feature Coverage — R1 Branding, UI/UX & Open-Source Architecture', () => {
 

@@ -6,7 +6,7 @@ import { afterAll } from 'vitest';
 
 // Set default test environment variables
 process.env.NODE_ENV = 'test';
-process.env.APP_URL = process.env.APP_URL || 'http://localhost:3000';
+process.env.APP_URL = process.env.APP_URL || 'http://localhost:3005';
 process.env.DATABASE_URL = process.env.DATABASE_URL || 'file:./fintrack.db';
 process.env.DB_TYPE = process.env.DB_TYPE || 'sqlite';
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key-32-chars-minimum!';

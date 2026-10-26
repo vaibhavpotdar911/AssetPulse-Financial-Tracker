@@ -22,12 +22,22 @@ interface DepositModalProps {
 }
 
 const COMPOUNDING_OPTIONS: SelectOption[] = [
-  { value: 'MONTHLY', label: 'Monthly Compounding (n=12)', description: 'Interest compounded every month' },
+  { value: 'AT_MATURITY', label: 'Simple Interest (At Maturity)', description: 'Standard simple interest formula: P × (1 + r × t)' },
   { value: 'QUARTERLY', label: 'Quarterly Compounding (n=4)', description: 'Standard Indian bank fixed deposit frequency' },
+  { value: 'MONTHLY', label: 'Monthly Compounding (n=12)', description: 'Interest compounded every month' },
   { value: 'SEMI_ANNUALLY', label: 'Semi-Annually (n=2)', description: 'Interest compounded every 6 months' },
   { value: 'ANNUALLY', label: 'Annually (n=1)', description: 'Interest compounded once per year' },
-  { value: 'AT_MATURITY', label: 'At Maturity (Simple Interest)', description: 'Cumulative payout upon maturity date' },
 ];
+
+/**
+ * Rounds a currency amount to the nearest whole integer as per standard bank procedures.
+ * Fractions of 50 paise / cents and above round up, below 50 paise / cents round down (no decimals).
+ */
+const roundBankWhole = (val: number | string): number => {
+  const n = typeof val === 'number' ? val : parseFloat(String(val));
+  if (isNaN(n)) return 0;
+  return Math.round(n);
+};
 
 export function DepositModal({ isOpen, onClose, onSuccess, deposit }: DepositModalProps) {
   const isEdit = Boolean(deposit);
@@ -35,16 +45,16 @@ export function DepositModal({ isOpen, onClose, onSuccess, deposit }: DepositMod
 
   const [bankName, setBankName] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
-  const [principal, setPrincipal] = useState<number | string>(100000);
-  const [annualRate, setAnnualRate] = useState<number | string>(7.5);
-  const [compoundingFrequency, setCompoundingFrequency] = useState<CompoundingFrequency>('QUARTERLY');
+  const [principal, setPrincipal] = useState<number | string>('');
+  const [annualRate, setAnnualRate] = useState<number | string>('');
+  const [compoundingFrequency, setCompoundingFrequency] = useState<CompoundingFrequency>('AT_MATURITY');
   const [startDate, setStartDate] = useState('');
   const [maturityDate, setMaturityDate] = useState('');
 
   // Tenure controls (years, months, days mix & match)
-  const [tenureYears, setTenureYears] = useState<number | string>(1);
-  const [tenureMonths, setTenureMonths] = useState<number | string>(0);
-  const [tenureDays, setTenureDays] = useState<number | string>(0);
+  const [tenureYears, setTenureYears] = useState<number | string>('');
+  const [tenureMonths, setTenureMonths] = useState<number | string>('');
+  const [tenureDays, setTenureDays] = useState<number | string>('');
 
   // Editable Financial Outputs (Interest Earned & Maturity Amount)
   const [customInterestEarned, setCustomInterestEarned] = useState<number | string>('');
@@ -61,19 +71,23 @@ export function DepositModal({ isOpen, onClose, onSuccess, deposit }: DepositMod
     if (deposit) {
       setBankName(deposit.bankName || '');
       setAccountNumber(deposit.accountNumber || '');
-      const p = deposit.principalAmount || 100000;
+      const p = deposit.principalAmount !== undefined ? roundBankWhole(deposit.principalAmount) : '';
       setPrincipal(p);
-      setAnnualRate(deposit.annualRate || 7.5);
-      setCompoundingFrequency(deposit.compoundingFrequency || 'QUARTERLY');
+      setAnnualRate(deposit.annualRate !== undefined ? deposit.annualRate : '');
+      setCompoundingFrequency(deposit.compoundingFrequency || 'AT_MATURITY');
       const s = deposit.startDate ? new Date(deposit.startDate).toISOString().split('T')[0] : '';
       const m = deposit.maturityDate ? new Date(deposit.maturityDate).toISOString().split('T')[0] : '';
       setStartDate(s);
       setMaturityDate(m);
       if (s && m) {
         const breakdown = calculateTenureBreakdown(s, m);
-        setTenureYears(breakdown.years);
-        setTenureMonths(breakdown.months);
-        setTenureDays(breakdown.days);
+        setTenureYears(breakdown.years || '');
+        setTenureMonths(breakdown.months || '');
+        setTenureDays(breakdown.days || '');
+      } else {
+        setTenureYears('');
+        setTenureMonths('');
+        setTenureDays('');
       }
       setIsAutoRenew(deposit.isAutoRenew || false);
       setNotes(deposit.notes || '');
@@ -83,16 +97,15 @@ export function DepositModal({ isOpen, onClose, onSuccess, deposit }: DepositMod
     } else {
       setBankName('');
       setAccountNumber('');
-      setPrincipal(100000);
-      setAnnualRate(7.5);
-      setCompoundingFrequency('QUARTERLY');
+      setPrincipal('');
+      setAnnualRate('');
+      setCompoundingFrequency('AT_MATURITY');
       const today = new Date().toISOString().split('T')[0];
       setStartDate(today);
-      setTenureYears(1);
-      setTenureMonths(0);
-      setTenureDays(0);
-      const computedMaturity = calculateMaturityDateFromTenure(today, { years: 1, months: 0, days: 0 });
-      setMaturityDate(computedMaturity);
+      setTenureYears('');
+      setTenureMonths('');
+      setTenureDays('');
+      setMaturityDate('');
       setIsAutoRenew(false);
       setNotes('');
       setIsCustomCalculation(false);
@@ -119,6 +132,8 @@ export function DepositModal({ isOpen, onClose, onSuccess, deposit }: DepositMod
           days: numD,
         });
         setMaturityDate(calculatedMaturity);
+      } else {
+        setMaturityDate('');
       }
     }
   };
@@ -146,35 +161,47 @@ export function DepositModal({ isOpen, onClose, onSuccess, deposit }: DepositMod
     setMaturityDate(newMaturity);
     if (startDate && newMaturity && new Date(newMaturity) > new Date(startDate)) {
       const breakdown = calculateTenureBreakdown(startDate, newMaturity);
-      setTenureYears(breakdown.years);
-      setTenureMonths(breakdown.months);
-      setTenureDays(breakdown.days);
+      setTenureYears(breakdown.years || '');
+      setTenureMonths(breakdown.months || '');
+      setTenureDays(breakdown.days || '');
     }
   };
 
   // Quick Preset Helper
   const applyPresetTenure = (years: number, months: number, days: number) => {
-    handleTenureChange(years, months, days);
+    handleTenureChange(years || '', months || '', days || '');
   };
 
-  // Formula-based Standard Calculation
+  // Formula-based Standard Calculation (Rounded as per standard banking procedures — no decimals)
   const formulaCalculation = useMemo(() => {
-    const numPrincipal = Number(principal);
+    if (principal === '' || annualRate === '' || !startDate || !maturityDate) {
+      return null;
+    }
+    const numPrincipal = roundBankWhole(principal);
     const numRate = Number(annualRate);
-    if (!numPrincipal || numPrincipal <= 0 || isNaN(numRate) || numRate < 0 || !startDate || !maturityDate) {
+    if (!numPrincipal || numPrincipal <= 0 || isNaN(numRate) || numRate < 0) {
       return null;
     }
     try {
       if (new Date(maturityDate) <= new Date(startDate)) {
         return null;
       }
-      return calculateFixedDeposit({
+      const raw = calculateFixedDeposit({
         principal: numPrincipal,
         annualRate: numRate,
         compoundingFrequency,
         startDate,
         maturityDate,
       });
+
+      // Round to whole numbers as per standard bank procedures
+      const roundedMaturity = Math.round(raw.maturityAmount);
+      const roundedInterest = Math.round(raw.totalInterestEarned);
+      return {
+        ...raw,
+        maturityAmount: roundedMaturity,
+        totalInterestEarned: roundedInterest,
+      };
     } catch {
       return null;
     }
@@ -188,38 +215,61 @@ export function DepositModal({ isOpen, onClose, onSuccess, deposit }: DepositMod
     }
   }, [formulaCalculation, isCustomCalculation]);
 
-  // Bidirectional Editable Handlers:
+  // Bidirectional Editable Handlers (Whole Integers — No Decimals):
   // When user edits Interest Earned: Maturity Amount = Principal + Interest
   const handleInterestEarnedChange = (val: string) => {
     setIsCustomCalculation(true);
-    setCustomInterestEarned(val);
-    const numInterest = parseFloat(val);
-    const numPrincipal = Number(principal) || 0;
-    if (!isNaN(numInterest)) {
-      const newMaturity = roundCurrency(numPrincipal + numInterest);
-      setCustomMaturityAmount(newMaturity);
+    if (val === '') {
+      setCustomInterestEarned('');
+      setCustomMaturityAmount('');
+      return;
+    }
+    const numInterest = roundBankWhole(val);
+    setCustomInterestEarned(numInterest);
+    const numPrincipal = roundBankWhole(principal);
+    setCustomMaturityAmount(numPrincipal + numInterest);
+  };
+
+  const handleInterestEarnedBlur = () => {
+    if (customInterestEarned !== '') {
+      setCustomInterestEarned(roundBankWhole(customInterestEarned));
     }
   };
 
   // When user edits Maturity Amount: Interest Earned = Maturity - Principal
   const handleMaturityAmountChange = (val: string) => {
     setIsCustomCalculation(true);
-    setCustomMaturityAmount(val);
-    const numMaturity = parseFloat(val);
-    const numPrincipal = Number(principal) || 0;
-    if (!isNaN(numMaturity)) {
-      const newInterest = roundCurrency(Math.max(0, numMaturity - numPrincipal));
-      setCustomInterestEarned(newInterest);
+    if (val === '') {
+      setCustomMaturityAmount('');
+      setCustomInterestEarned('');
+      return;
+    }
+    const numMaturity = roundBankWhole(val);
+    setCustomMaturityAmount(numMaturity);
+    const numPrincipal = roundBankWhole(principal);
+    setCustomInterestEarned(Math.max(0, numMaturity - numPrincipal));
+  };
+
+  const handleMaturityAmountBlur = () => {
+    if (customMaturityAmount !== '') {
+      setCustomMaturityAmount(roundBankWhole(customMaturityAmount));
     }
   };
 
   // When Principal changes: If in custom mode, keep interest and update maturity amount
   const handlePrincipalChange = (val: string) => {
     setPrincipal(val);
-    const numPrincipal = parseFloat(val) || 0;
+    if (val === '') return;
+    const numPrincipal = roundBankWhole(val);
     if (isCustomCalculation && customInterestEarned !== '') {
-      const numInterest = Number(customInterestEarned) || 0;
-      setCustomMaturityAmount(roundCurrency(numPrincipal + numInterest));
+      const numInterest = roundBankWhole(customInterestEarned);
+      setCustomMaturityAmount(numPrincipal + numInterest);
+    }
+  };
+
+  const handlePrincipalBlur = () => {
+    if (principal !== '') {
+      setPrincipal(roundBankWhole(principal));
     }
   };
 
@@ -243,6 +293,21 @@ export function DepositModal({ isOpen, onClose, onSuccess, deposit }: DepositMod
       return;
     }
 
+    if (principal === '' || Number(principal) <= 0) {
+      setError('Investment principal amount is required and must be greater than zero.');
+      return;
+    }
+
+    if (annualRate === '' || isNaN(Number(annualRate)) || Number(annualRate) < 0) {
+      setError('Annual interest rate percentage is required.');
+      return;
+    }
+
+    if (!startDate || !maturityDate) {
+      setError('Start date and tenure/maturity date are required.');
+      return;
+    }
+
     if (new Date(maturityDate) <= new Date(startDate)) {
       setError('Maturity date must be after start date.');
       return;
@@ -253,7 +318,7 @@ export function DepositModal({ isOpen, onClose, onSuccess, deposit }: DepositMod
       const payload = {
         bankName,
         accountNumber,
-        principalAmount: Number(principal),
+        principalAmount: roundBankWhole(principal),
         annualRate: Number(annualRate),
         compoundingFrequency,
         startDate,
@@ -285,9 +350,13 @@ export function DepositModal({ isOpen, onClose, onSuccess, deposit }: DepositMod
     }
   };
 
-  const displayedPrincipal = Number(principal) || 0;
-  const displayedInterest = customInterestEarned !== '' ? Number(customInterestEarned) : (formulaCalculation?.totalInterestEarned ?? 0);
-  const displayedMaturity = customMaturityAmount !== '' ? Number(customMaturityAmount) : (formulaCalculation?.maturityAmount ?? displayedPrincipal + displayedInterest);
+  const displayedPrincipal = roundBankWhole(principal);
+  const displayedInterest = customInterestEarned !== ''
+    ? roundBankWhole(customInterestEarned)
+    : (formulaCalculation?.totalInterestEarned ?? 0);
+  const displayedMaturity = customMaturityAmount !== ''
+    ? roundBankWhole(customMaturityAmount)
+    : (formulaCalculation?.maturityAmount ?? displayedPrincipal + displayedInterest);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm overflow-y-auto">
@@ -302,9 +371,15 @@ export function DepositModal({ isOpen, onClose, onSuccess, deposit }: DepositMod
         <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-1">
           {isEdit ? 'Edit Fixed Deposit' : 'Add New Fixed Deposit'}
         </h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">
-          Configure institution, flexible tenure, interest rates, and customize investment/maturity amounts with live bidirectional recalculation.
-        </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Configure institution, flexible tenure, interest rates, and customize investment/maturity amounts with live bidirectional recalculation.
+          </p>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-brand-emerald-700 dark:text-brand-emerald-400 text-[10px] font-semibold shrink-0">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Standard Bank Procedure: Integer Rounding (No Decimals)
+          </span>
+        </div>
 
         {error && (
           <div className="mb-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs flex items-center gap-2">
@@ -354,9 +429,11 @@ export function DepositModal({ isOpen, onClose, onSuccess, deposit }: DepositMod
                   type="number"
                   required
                   min="1"
-                  step="any"
+                  step="1"
                   value={principal}
                   onChange={(e) => handlePrincipalChange(e.target.value)}
+                  onBlur={handlePrincipalBlur}
+                  placeholder="e.g. 100000"
                   className="w-full pl-8 pr-3 py-2 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-emerald-500/30 focus:border-brand-emerald-500 focus:outline-none font-mono"
                 />
               </div>
@@ -376,6 +453,7 @@ export function DepositModal({ isOpen, onClose, onSuccess, deposit }: DepositMod
                   setAnnualRate(e.target.value);
                   setIsCustomCalculation(false);
                 }}
+                placeholder="e.g. 7.50"
                 className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-emerald-500/30 focus:border-brand-emerald-500 focus:outline-none font-mono"
               />
             </div>
@@ -501,7 +579,7 @@ export function DepositModal({ isOpen, onClose, onSuccess, deposit }: DepositMod
                 {Number(tenureYears) > 0 ? `${tenureYears} Yr ` : ''}
                 {Number(tenureMonths) > 0 ? `${tenureMonths} Mo ` : ''}
                 {Number(tenureDays) > 0 ? `${tenureDays} Days` : ''}
-                {Number(tenureYears) === 0 && Number(tenureMonths) === 0 && Number(tenureDays) === 0 ? 'Custom Dates' : ''}
+                {(!tenureYears || Number(tenureYears) === 0) && (!tenureMonths || Number(tenureMonths) === 0) && (!tenureDays || Number(tenureDays) === 0) ? (maturityDate ? 'Custom Dates' : 'Not specified') : ''}
               </span>
             </div>
           </div>
@@ -553,11 +631,13 @@ export function DepositModal({ isOpen, onClose, onSuccess, deposit }: DepositMod
                   Investment Principal
                 </span>
                 <span className="font-mono font-bold text-sm text-slate-900 dark:text-white block">
-                  {formatAmount(displayedPrincipal)}
+                  {displayedPrincipal > 0
+                    ? formatAmount(displayedPrincipal, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+                    : '—'}
                 </span>
               </div>
 
-              {/* Interest Earned (Editable) */}
+              {/* Interest Earned (Editable — Whole Integer) */}
               <div className="p-2.5 rounded-lg bg-white/80 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold block">
@@ -575,17 +655,18 @@ export function DepositModal({ isOpen, onClose, onSuccess, deposit }: DepositMod
                   </span>
                   <input
                     type="number"
-                    step="0.01"
+                    step="1"
                     min="0"
                     value={customInterestEarned}
                     onChange={(e) => handleInterestEarnedChange(e.target.value)}
-                    placeholder="0.00"
+                    onBlur={handleInterestEarnedBlur}
+                    placeholder="0"
                     className="w-full pl-6 pr-2 py-0.5 text-xs rounded border border-slate-300 dark:border-slate-600 bg-transparent font-mono font-bold text-brand-emerald-600 dark:text-brand-emerald-400 focus:outline-none focus:ring-1 focus:ring-brand-emerald-500"
                   />
                 </div>
               </div>
 
-              {/* Maturity Amount (Editable = Principal + Interest) */}
+              {/* Maturity Amount (Editable = Principal + Interest — Whole Integer) */}
               <div className="p-2.5 rounded-lg bg-white/80 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold block">
@@ -599,11 +680,12 @@ export function DepositModal({ isOpen, onClose, onSuccess, deposit }: DepositMod
                   </span>
                   <input
                     type="number"
-                    step="0.01"
+                    step="1"
                     min="0"
                     value={customMaturityAmount}
                     onChange={(e) => handleMaturityAmountChange(e.target.value)}
-                    placeholder="0.00"
+                    onBlur={handleMaturityAmountBlur}
+                    placeholder="0"
                     className="w-full pl-6 pr-2 py-0.5 text-xs rounded border border-slate-300 dark:border-slate-600 bg-transparent font-mono font-bold text-indigo-600 dark:text-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
@@ -612,9 +694,15 @@ export function DepositModal({ isOpen, onClose, onSuccess, deposit }: DepositMod
 
             {/* Quick Summary Pill */}
             <div className="text-[11px] text-slate-500 dark:text-slate-400 flex flex-wrap items-center justify-between pt-1">
-              <span>
-                Calculation Equation: <strong>{formatAmount(displayedPrincipal)}</strong> + <strong className="text-brand-emerald-600">+{formatAmount(displayedInterest)}</strong> = <strong className="text-indigo-600">{formatAmount(displayedMaturity)}</strong>
-              </span>
+              {displayedPrincipal > 0 && displayedMaturity > 0 ? (
+                <span>
+                  Calculation Equation: <strong>{formatAmount(displayedPrincipal, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</strong> + <strong className="text-brand-emerald-600">+{formatAmount(displayedInterest, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</strong> = <strong className="text-indigo-600">{formatAmount(displayedMaturity, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</strong>
+                </span>
+              ) : (
+                <span className="italic text-slate-400 dark:text-slate-500">
+                  Enter principal amount, interest rate, and tenure to calculate projected return.
+                </span>
+              )}
               {formulaCalculation && (
                 <span>
                   Tenure Horizon: <strong>{formulaCalculation.daysRemaining} days remaining</strong>

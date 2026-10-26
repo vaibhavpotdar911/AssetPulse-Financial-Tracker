@@ -103,7 +103,7 @@ export default function AuditLogsPage() {
         </div>
 
         {/* Filter Toolbar */}
-        <div className="p-4 rounded-2xl brand-glass border border-slate-200/80 dark:border-slate-800/80 shadow-sm flex flex-col md:flex-row md:items-center gap-4">
+        <div className="relative z-30 p-4 rounded-2xl brand-glass border border-slate-200/80 dark:border-slate-800/80 shadow-sm flex flex-col md:flex-row md:items-center gap-4">
           <form onSubmit={handleSearchSubmit} className="relative flex-1">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
             <input
@@ -166,7 +166,7 @@ export default function AuditLogsPage() {
         </div>
 
         {/* Ledger Table */}
-        <div className="brand-glass rounded-2xl border border-slate-200/80 dark:border-slate-800/80 overflow-hidden shadow-sm">
+        <div className="relative z-10 brand-glass rounded-2xl border border-slate-200/80 dark:border-slate-800/80 overflow-hidden shadow-sm">
           {loading ? (
             <div className="p-16 text-center text-slate-400 flex flex-col items-center gap-2">
               <Loader2 className="h-6 w-6 animate-spin text-brand-emerald-600" />

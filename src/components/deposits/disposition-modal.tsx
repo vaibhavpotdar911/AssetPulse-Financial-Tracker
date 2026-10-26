@@ -11,6 +11,7 @@ interface DispositionModalProps {
   onClose: () => void;
   onSuccess: () => void;
   deposit: any;
+  onRenew?: (deposit: any) => void;
 }
 
 const DISPOSITION_OPTIONS: SelectOption[] = [
@@ -25,6 +26,7 @@ export function DispositionModal({
   onClose,
   onSuccess,
   deposit,
+  onRenew,
 }: DispositionModalProps) {
   const { symbol, formatAmount } = useCurrency();
   const [dispositionType, setDispositionType] = useState<DispositionType>('MATURED_REINVESTED');
@@ -142,6 +144,29 @@ export function DispositionModal({
               placeholder="Select disposition reason"
             />
           </div>
+
+          {dispositionType === 'MATURED_REINVESTED' && onRenew && (
+            <div className="p-3.5 rounded-xl bg-brand-emerald-50/80 dark:bg-emerald-950/20 border border-brand-emerald-200 dark:border-emerald-800/40 flex items-center justify-between gap-3 text-xs">
+              <div>
+                <span className="font-bold text-brand-emerald-800 dark:text-brand-emerald-300 block">
+                  Rollover with Same Account Number?
+                </span>
+                <span className="text-[11px] text-slate-600 dark:text-slate-400">
+                  Renew directly into a new tenure with updated interest rates under account #{deposit.accountNumber}.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onRenew(deposit);
+                }}
+                className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold bg-brand-emerald-600 hover:bg-brand-emerald-700 text-white shadow-xs transition-colors"
+              >
+                Launch Renewal Flow
+              </button>
+            </div>
+          )}
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">

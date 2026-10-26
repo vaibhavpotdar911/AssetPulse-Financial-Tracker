@@ -1,7 +1,20 @@
 import type { Metadata } from 'next';
+import { Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { CurrencyProvider } from '@/components/providers/currency-provider';
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-sans',
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-mono',
+});
 
 export const metadata: Metadata = {
   title: 'AssetPulse | Personal Financial Asset & Fixed Deposit Tracker',
@@ -32,12 +45,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${inter.variable} ${jetbrainsMono.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         {/* Blocking inline script — must run before first paint to prevent blank screen */}
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className="min-h-screen bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-50">
+      <body className="min-h-screen bg-slate-50 text-slate-900 font-sans subpixel-antialiased dark:bg-slate-950 dark:text-slate-50 selection:bg-emerald-500 selection:text-white">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

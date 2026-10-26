@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { DashboardNav } from '@/components/dashboard/dashboard-nav';
 import { DepositModal } from '@/components/deposits/deposit-modal';
 import { DispositionModal } from '@/components/deposits/disposition-modal';
+import { RenewModal } from '@/components/deposits/renew-modal';
 import { useCurrency } from '@/components/providers/currency-provider';
 import {
   Wallet,
@@ -21,6 +22,7 @@ import {
   AlertOctagon,
   Clock,
   Coins,
+  RotateCw,
 } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -31,6 +33,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedDepositForClose, setSelectedDepositForClose] = useState<any | null>(null);
+  const [renewingDeposit, setRenewingDeposit] = useState<any | null>(null);
 
   const fetchDashboardData = async () => {
     try {
@@ -167,12 +170,22 @@ export default function DashboardPage() {
                       {fd.accountNumber} • Payout: {formatAmount(Number(fd.maturityAmount))}
                     </span>
                   </div>
-                  <button
-                    onClick={() => setSelectedDepositForClose(fd)}
-                    className="shrink-0 px-2.5 py-1.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-xs transition-colors"
-                  >
-                    Liquidate Now
-                  </button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={() => setRenewingDeposit(fd)}
+                      className="px-2.5 py-1.5 text-xs font-bold text-white bg-brand-emerald-600 hover:bg-brand-emerald-700 rounded-lg shadow-xs transition-colors flex items-center gap-1"
+                      title="Renew with same account number"
+                    >
+                      <RotateCw className="h-3 w-3" />
+                      <span>Renew</span>
+                    </button>
+                    <button
+                      onClick={() => setSelectedDepositForClose(fd)}
+                      className="px-2 py-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-950/40 rounded-lg transition-colors"
+                    >
+                      Liquidate
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -229,6 +242,14 @@ export default function DashboardPage() {
                   <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/20 text-amber-800 dark:text-amber-300">
                     {fd.daysRemaining === 1 ? '1 day left' : `${fd.daysRemaining} days left`}
                   </span>
+                  <button
+                    onClick={() => setRenewingDeposit(fd)}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-brand-emerald-700 dark:text-brand-emerald-400 hover:underline"
+                    title="Renew with same account number"
+                  >
+                    <RotateCw className="h-2.5 w-2.5" />
+                    <span>Renew</span>
+                  </button>
                 </div>
               ))}
             </div>
@@ -273,21 +294,21 @@ export default function DashboardPage() {
             </span>
           </div>
 
-          {/* Card 3: Monthly SIP Commitment */}
+          {/* Card 3: Estimated Maturity Value */}
           <div className="p-5 rounded-2xl brand-glass border border-slate-200/80 dark:border-slate-800/80 shadow-sm">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Monthly SIP Outflow
+                Total Maturity Amount
               </span>
               <div className="h-8 w-8 rounded-lg bg-indigo-500/10 text-indigo-600 flex items-center justify-center">
                 <PiggyBank className="h-4 w-4" />
               </div>
             </div>
             <div className="text-2xl sm:text-3xl font-black font-mono text-indigo-600 dark:text-indigo-400">
-              {formatAmount(totalMonthlySip)}
+              {formatAmount(totalMaturityValue)}
             </div>
             <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">
-              {sips.filter((s) => s.status === 'ACTIVE').length} active recurring schedules
+              Principal + guaranteed maturity payout
             </span>
           </div>
 
@@ -428,12 +449,22 @@ export default function DashboardPage() {
                         </td>
 
                         <td className="py-3.5 px-4 text-right">
-                          <button
-                            onClick={() => setSelectedDepositForClose(fd)}
-                            className="text-xs font-semibold text-rose-600 hover:text-rose-700 dark:text-rose-400 px-2 py-1 rounded hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
-                          >
-                            Close / Liquidate
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => setRenewingDeposit(fd)}
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-brand-emerald-700 dark:text-brand-emerald-400 hover:text-brand-emerald-800 px-2 py-1 rounded hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors"
+                              title="Renew with same account number"
+                            >
+                              <RotateCw className="h-3 w-3" />
+                              <span>Renew</span>
+                            </button>
+                            <button
+                              onClick={() => setSelectedDepositForClose(fd)}
+                              className="text-xs font-semibold text-rose-600 hover:text-rose-700 dark:text-rose-400 px-2 py-1 rounded hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+                            >
+                              Close
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -518,6 +549,14 @@ export default function DashboardPage() {
         onClose={() => setSelectedDepositForClose(null)}
         onSuccess={fetchDashboardData}
         deposit={selectedDepositForClose}
+        onRenew={(dep) => setRenewingDeposit(dep)}
+      />
+
+      <RenewModal
+        isOpen={Boolean(renewingDeposit)}
+        onClose={() => setRenewingDeposit(null)}
+        onSuccess={fetchDashboardData}
+        deposit={renewingDeposit}
       />
     </div>
   );
