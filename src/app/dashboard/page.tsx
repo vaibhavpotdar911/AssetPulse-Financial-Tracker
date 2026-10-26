@@ -6,6 +6,7 @@ import { DashboardNav } from '@/components/dashboard/dashboard-nav';
 import { DepositModal } from '@/components/deposits/deposit-modal';
 import { DispositionModal } from '@/components/deposits/disposition-modal';
 import { RenewModal } from '@/components/deposits/renew-modal';
+import { RenewSipModal } from '@/components/sips/renew-sip-modal';
 import { useCurrency } from '@/components/providers/currency-provider';
 import {
   Wallet,
@@ -34,6 +35,7 @@ export default function DashboardPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedDepositForClose, setSelectedDepositForClose] = useState<any | null>(null);
   const [renewingDeposit, setRenewingDeposit] = useState<any | null>(null);
+  const [renewingSip, setRenewingSip] = useState<any | null>(null);
 
   const fetchDashboardData = async () => {
     try {
@@ -66,7 +68,7 @@ export default function DashboardPage() {
   }, []);
 
   // Overview metrics calculations
-  const activeDeposits = deposits.filter((d) => d.status === 'ACTIVE');
+  const activeDeposits = deposits.filter((d) => ['ACTIVE', 'MATURED'].includes(d.status));
   const totalPrincipal = activeDeposits.reduce((sum, d) => sum + (d.principalAmount || 0), 0);
   const totalAccruedInterest = activeDeposits.reduce((sum, d) => sum + (d.accruedInterest || 0), 0);
   const totalMaturityValue = activeDeposits.reduce((sum, d) => sum + (d.maturityAmount || 0), 0);
@@ -75,9 +77,31 @@ export default function DashboardPage() {
   const totalSipInvested = sips.reduce((sum, s) => sum + (s.totalInvested || 0), 0);
   const totalNetWorth = totalPrincipal + totalAccruedInterest + totalSipInvested;
 
-  const maturedDeposits = activeDeposits.filter((d) => d.isMatured || d.daysRemaining === 0);
-  const urgent7DaysDeposits = activeDeposits.filter((d) => !d.isMatured && d.daysRemaining > 0 && d.daysRemaining <= 7);
-  const maturedCount = maturedDeposits.length;
+  // Matured & Unrenewed Contracts identification:
+  // 1. Fixed Deposits: Either status is MATURED, or ACTIVE but past maturity date (isMatured or daysRemaining <= 0).
+  //    (Exclude deposits that have already been renewed or closed/liquidated).
+  const unrenewedMaturedDeposits = deposits.filter(
+    (d) =>
+      !d.isRenewed &&
+      (d.status === 'MATURED' ||
+        (d.status === 'ACTIVE' && (d.isMatured || d.daysRemaining === 0 || new Date(d.maturityDate) <= new Date())))
+  );
+
+  // 2. Recurring Deposits: RD SIP schedules that have completed their tenure or ended and not renewed
+  const unrenewedMaturedRds = sips.filter(
+    (s) =>
+      s.assetType === 'RECURRING_DEPOSIT' &&
+      !s.isRenewed &&
+      (s.status === 'COMPLETED' ||
+        (s.tenureMonths && s.installmentsExecuted >= s.tenureMonths) ||
+        (s.endDate && new Date(s.endDate) <= new Date()))
+  );
+
+  const totalUnrenewedMaturedCount = unrenewedMaturedDeposits.length + unrenewedMaturedRds.length;
+
+  const urgent7DaysDeposits = activeDeposits.filter(
+    (d) => !d.isMatured && d.status !== 'MATURED' && d.daysRemaining > 0 && d.daysRemaining <= 7
+  );
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col">
@@ -120,8 +144,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Proximity Alert Banners */}
-        {maturedDeposits.length > 0 && (
+        {/* Matured Unrenewed Contracts Reminder & Action Alert */}
+        {totalUnrenewedMaturedCount > 0 && (
           <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-rose-500/15 via-rose-500/10 to-amber-500/10 border-2 border-rose-500/30 text-rose-950 dark:text-rose-100 shadow-md">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex items-start gap-3">
@@ -131,59 +155,119 @@ export default function DashboardPage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-rose-600 text-white">
-                      Critical Alert
+                      Action Required
                     </span>
                     <span className="text-xs text-rose-700 dark:text-rose-300 font-semibold">
-                      {maturedDeposits.length} deposit{maturedDeposits.length > 1 ? 's' : ''} matured today
+                      {totalUnrenewedMaturedCount} matured contract{totalUnrenewedMaturedCount > 1 ? 's' : ''} awaiting renewal or update
                     </span>
                   </div>
                   <h3 className="text-base font-extrabold text-slate-950 dark:text-white mt-1">
-                    Maturity Contract Reached — Action Required
+                    Matured Contracts Pending Renewal
                   </h3>
                   <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5 max-w-2xl">
-                    The following deposit{maturedDeposits.length > 1 ? 's have' : ' has'} completed tenure. Realize accrued interest and record disposition to prevent unintended rollover:
+                    The following deposits/RDs have reached their maturity date and have not been renewed or updated in the app. Renew them with the same account number to carry forward your principal or record disposition:
                   </p>
                 </div>
               </div>
 
-              <Link
-                href="/deposits"
-                className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:underline flex items-center gap-1 self-start md:self-auto shrink-0"
-              >
-                <span>View all in deposits</span>
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
+              <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
+                <Link
+                  href="/deposits"
+                  className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:underline flex items-center gap-1"
+                >
+                  <span>Deposits</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+                <span className="text-slate-300 dark:text-slate-700">•</span>
+                <Link
+                  href="/sips"
+                  className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:underline flex items-center gap-1"
+                >
+                  <span>SIPs & RDs</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
             </div>
 
-            {/* Deposit Summary Chips */}
+            {/* Matured Summary Chips */}
             <div className="mt-3.5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {maturedDeposits.map((fd) => (
+              {/* Fixed Deposits Matured & Unrenewed */}
+              {unrenewedMaturedDeposits.map((fd) => {
+                const daysOverdue = Math.max(
+                  0,
+                  Math.floor((new Date().getTime() - new Date(fd.maturityDate).getTime()) / (1000 * 60 * 60 * 24))
+                );
+                return (
+                  <div
+                    key={fd.id}
+                    className="p-3 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-rose-200/80 dark:border-rose-900/40 flex items-center justify-between gap-3 shadow-xs"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-xs text-slate-900 dark:text-white truncate">
+                          {fd.bankName}
+                        </span>
+                        <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+                          FD
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 block truncate">
+                        {fd.accountNumber} • Payout: {formatAmount(Number(fd.maturityAmount))}
+                      </span>
+                      <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                        {daysOverdue === 0 ? 'Matured today' : `Matured ${daysOverdue} day${daysOverdue > 1 ? 's' : ''} ago`} • Not renewed
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        onClick={() => setRenewingDeposit(fd)}
+                        className="px-2.5 py-1.5 text-xs font-bold text-white bg-brand-emerald-600 hover:bg-brand-emerald-700 rounded-lg shadow-xs transition-colors flex items-center gap-1"
+                        title="Renew with same account number"
+                      >
+                        <RotateCw className="h-3 w-3" />
+                        <span>Renew</span>
+                      </button>
+                      <button
+                        onClick={() => setSelectedDepositForClose(fd)}
+                        className="px-2 py-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-950/40 rounded-lg transition-colors"
+                      >
+                        Liquidate
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Recurring Deposits Matured & Unrenewed */}
+              {unrenewedMaturedRds.map((rd) => (
                 <div
-                  key={fd.id}
-                  className="p-3 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-rose-200/80 dark:border-rose-900/40 flex items-center justify-between gap-3 shadow-xs"
+                  key={rd.id}
+                  className="p-3 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-amber-200/80 dark:border-amber-900/40 flex items-center justify-between gap-3 shadow-xs"
                 >
                   <div className="min-w-0">
-                    <span className="font-bold text-xs text-slate-900 dark:text-white truncate block">
-                      {fd.bankName}
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-xs text-slate-900 dark:text-white truncate">
+                        {rd.schemeName || rd.name}
+                      </span>
+                      <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                        RD
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 block truncate">
+                      {rd.folioNumber || 'Folio: —'} • Total: {formatAmount(Number(rd.totalInvested || 0))}
                     </span>
-                    <span className="text-[11px] font-mono text-slate-400 block">
-                      {fd.accountNumber} • Payout: {formatAmount(Number(fd.maturityAmount))}
+                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                      Tenure completed ({rd.installmentsExecuted || 0}/{rd.tenureMonths || '—'} inst.) • Not renewed
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <button
-                      onClick={() => setRenewingDeposit(fd)}
+                      onClick={() => setRenewingSip(rd)}
                       className="px-2.5 py-1.5 text-xs font-bold text-white bg-brand-emerald-600 hover:bg-brand-emerald-700 rounded-lg shadow-xs transition-colors flex items-center gap-1"
-                      title="Renew with same account number"
+                      title="Renew RD cycle"
                     >
                       <RotateCw className="h-3 w-3" />
-                      <span>Renew</span>
-                    </button>
-                    <button
-                      onClick={() => setSelectedDepositForClose(fd)}
-                      className="px-2 py-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-950/40 rounded-lg transition-colors"
-                    >
-                      Liquidate
+                      <span>Renew RD</span>
                     </button>
                   </div>
                 </div>
@@ -557,6 +641,13 @@ export default function DashboardPage() {
         onClose={() => setRenewingDeposit(null)}
         onSuccess={fetchDashboardData}
         deposit={renewingDeposit}
+      />
+
+      <RenewSipModal
+        isOpen={Boolean(renewingSip)}
+        onClose={() => setRenewingSip(null)}
+        onSuccess={fetchDashboardData}
+        sip={renewingSip}
       />
     </div>
   );
