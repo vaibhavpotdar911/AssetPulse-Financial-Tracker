@@ -6,8 +6,8 @@ metadata:
   labels:
     app: assetpulse-cron
 spec:
-  # Runs daily at 04:00 AM UTC (09:30 AM IST). Adjust cron expression as desired.
-  schedule: "0 4 * * *"
+  # Runs daily at 01:30 AM UTC (07:00 AM IST).
+  schedule: "30 1 * * *"
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3
@@ -28,17 +28,28 @@ spec:
                 - /bin/sh
                 - -c
                 - >
-                  echo "[$(date -u)] Initiating AssetPulse daily maturity scan...";
-                  RESPONSE=$(curl -fsS -X POST "http://assetpulse-service.assetpulse.svc.cluster.local/api/cron/maturity-check?secret=${CRON_SECRET}" \
-                    -H "x-cron-secret: ${CRON_SECRET}" \
-                    -H "Authorization: Bearer ${CRON_SECRET}" \
+                  echo "[$(date -u)] Initiating AssetPulse daily maturity scan (7:00 AM IST schedule)...";
+                  TARGET_URL="http://assetpulse-service.assetpulse.svc.cluster.local/api/cron/maturity-check";
+                  if ! curl -s -o /dev/null -w "%{http_code}" --connect-timeout 2 "http://assetpulse-service/api/health/db" 2>/dev/null | grep -q "[0-9]"; then
+                    if curl -s -o /dev/null -w "%{http_code}" --connect-timeout 2 "http://assetpulse:3000/api/health/db" 2>/dev/null | grep -q "[0-9]"; then
+                      TARGET_URL="http://assetpulse:3000/api/cron/maturity-check";
+                    fi;
+                  else
+                    TARGET_URL="http://assetpulse-service/api/cron/maturity-check";
+                  fi;
+                  echo "Target endpoint: ${TARGET_URL}";
+                  TOKEN="${CRON_SECRET:-}";
+                  RESPONSE=$(curl -sS -X POST "${TARGET_URL}?secret=${TOKEN}" \
+                    -H "x-cron-secret: ${TOKEN}" \
+                    -H "Authorization: Bearer ${TOKEN}" \
                     -w "\nHTTP_STATUS:%{http_code}\n");
+                  echo "Response from AssetPulse:";
                   echo "$RESPONSE";
                   if echo "$RESPONSE" | grep -q "HTTP_STATUS:200"; then
                     echo "[$(date -u)] Daily maturity scan and notification dispatch succeeded.";
                     exit 0;
                   else
-                    echo "[$(date -u)] Daily maturity scan failed.";
+                    echo "[$(date -u)] Daily maturity scan failed. Check HTTP_STATUS and response above.";
                     exit 1;
                   fi
               env:
@@ -47,3 +58,4 @@ spec:
                     secretKeyRef:
                       name: assetpulse-secret
                       key: CRON_SECRET
+                      optional: true

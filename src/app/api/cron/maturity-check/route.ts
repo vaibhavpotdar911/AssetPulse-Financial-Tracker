@@ -8,13 +8,13 @@ export const dynamic = 'force-dynamic';
 /**
  * Validates cron secret token against request headers, query parameters, or session.
  */
-async function isAuthorizedCronRequest(request: NextRequest): Promise<boolean> {
+async function isAuthorizedCronRequest(request: NextRequest): Promise<{ authorized: boolean; reason?: string }> {
   const configuredSecret = process.env.CRON_SECRET?.trim();
 
   // 1. Session user fallback
   const sessionUser = await getSessionFromRequest(request);
   if (sessionUser) {
-    return true;
+    return { authorized: true };
   }
 
   // 2. Development mode fallback
@@ -22,32 +22,42 @@ async function isAuthorizedCronRequest(request: NextRequest): Promise<boolean> {
     process.env.NODE_ENV !== 'production' &&
     (!configuredSecret || configuredSecret === 'assetpulse-cron-secret-token')
   ) {
-    return true;
+    return { authorized: true };
+  }
+
+  if (!configuredSecret) {
+    return {
+      authorized: false,
+      reason: 'CRON_SECRET environment variable is not defined on the running server container.',
+    };
   }
 
   // 3. Bearer Authorization Header
   const authHeader = request.headers.get('authorization');
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const bearerToken = authHeader.substring(7).trim();
-    if (configuredSecret && bearerToken === configuredSecret) {
-      return true;
+    if (bearerToken === configuredSecret) {
+      return { authorized: true };
     }
   }
 
   // 4. Custom x-cron-secret Header
   const xCronSecret = request.headers.get('x-cron-secret')?.trim();
-  if (configuredSecret && xCronSecret === configuredSecret) {
-    return true;
+  if (xCronSecret === configuredSecret) {
+    return { authorized: true };
   }
 
   // 5. Query Parameter ?token= or ?secret=
   const { searchParams } = new URL(request.url);
   const queryToken = searchParams.get('token')?.trim() || searchParams.get('secret')?.trim();
-  if (configuredSecret && queryToken === configuredSecret) {
-    return true;
+  if (queryToken === configuredSecret) {
+    return { authorized: true };
   }
 
-  return false;
+  return {
+    authorized: false,
+    reason: 'Provided secret token does not match server CRON_SECRET.',
+  };
 }
 
 /**
@@ -55,12 +65,17 @@ async function isAuthorizedCronRequest(request: NextRequest): Promise<boolean> {
  */
 async function handleCronExecution(request: NextRequest): Promise<NextResponse> {
   try {
-    const authorized = await isAuthorizedCronRequest(request);
-    if (!authorized) {
+    const authResult = await isAuthorizedCronRequest(request);
+    if (!authResult.authorized) {
+      console.warn(
+        `[API /api/cron/maturity-check] Unauthorized cron attempt: ${authResult.reason} (Server has CRON_SECRET configured: ${Boolean(process.env.CRON_SECRET)})`
+      );
       return NextResponse.json(
         {
           error: 'Unauthorized',
           message: 'Invalid or missing cron authorization credentials.',
+          diagnostic: authResult.reason,
+          serverConfiguredSecret: Boolean(process.env.CRON_SECRET),
         },
         { status: 401 }
       );
