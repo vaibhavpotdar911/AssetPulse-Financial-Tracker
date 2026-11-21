@@ -5,6 +5,7 @@
  * and across bundled Next.js App Router chunks in production, preventing connection leaks.
  * Automatically tunes connection parameters (connect_timeout, pool_timeout) for resilient
  * operation in containerized and cloud Kubernetes environments.
+ * Provides transparent query auto-retry middleware on transient WAN/NAT idle connection drops.
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -87,7 +88,8 @@ export function getTunedDatabaseUrl(rawUrl?: string): string {
 }
 
 /**
- * Instantiates the PrismaClient with tuned connection parameters and event-based logging.
+ * Instantiates the PrismaClient with tuned connection parameters, event logging,
+ * and transparent reconnect middleware for idle/severed connections.
  */
 function createPrismaClient(): PrismaClient {
   const tunedUrl = getTunedDatabaseUrl();
@@ -113,6 +115,36 @@ function createPrismaClient(): PrismaClient {
     console.warn('[AssetPulse Prisma Warn]:', event?.message || event);
   });
 
+  // Transparent reconnect & retry middleware for transient WAN/NAT disconnects:
+  // When connections idle for minutes between user interactions, cloud firewalls drop TCP state.
+  // This automatically retries the query once, giving Prisma a chance to evict the dead socket
+  // and establish a fresh connection without throwing an uncaught 500 error to the client.
+  client.$use(async (params, next) => {
+    try {
+      return await next(params);
+    } catch (err: any) {
+      const isTransientConnDrop =
+        err?.code === 'P1001' ||
+        err?.code === 'P1002' ||
+        err?.code === 'P1008' ||
+        err?.code === 'P1017' ||
+        err?.name === 'PrismaClientInitializationError' ||
+        err?.name === 'PrismaClientKnownRequestError' && err?.code === 'P1001' ||
+        err?.message?.includes("Can't reach database server") ||
+        err?.message?.includes('Connection lost') ||
+        err?.message?.includes('closed by server');
+
+      if (isTransientConnDrop) {
+        console.warn(
+          `[AssetPulse DB] Stale/idle connection dropped on ${params.model || 'model'}.${params.action} (${err?.code || 'P1001'}). Evicting dead socket and retrying in 500ms...`
+        );
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        return await next(params);
+      }
+      throw err;
+    }
+  });
+
   return client;
 }
 
@@ -126,7 +158,7 @@ export const prisma =
 globalThis.__assetpulse_prisma = prisma;
 
 /**
- * Performs a lightweight health check query against the active database.
+ * Performs a lightweight health check query against the active database with single retry.
  */
 export async function checkDatabaseConnection(): Promise<{
   connected: boolean;
@@ -139,11 +171,18 @@ export async function checkDatabaseConnection(): Promise<{
     await prisma.$queryRawUnsafe('SELECT 1');
     return { connected: true, provider };
   } catch (err: any) {
-    return {
-      connected: false,
-      provider,
-      error: err?.message || 'Unknown database connection error',
-    };
+    // Retry once in case of cold-start or idle socket drop
+    try {
+      await new Promise((r) => setTimeout(r, 500));
+      await prisma.$queryRawUnsafe('SELECT 1');
+      return { connected: true, provider };
+    } catch (retryErr: any) {
+      return {
+        connected: false,
+        provider,
+        error: retryErr?.message || err?.message || 'Unknown database connection error',
+      };
+    }
   }
 }
 

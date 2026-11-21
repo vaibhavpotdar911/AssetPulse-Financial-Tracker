@@ -4,6 +4,9 @@ import { withAuth } from '@/lib/session';
 import { verifyEmailConnection, sendMaturityEmail } from '@/lib/email';
 import { verifyTelegramCredentials, sendTelegramMaturityAlert } from '@/lib/telegram';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/settings/notifications
  * Retrieves current user's email and telegram notification settings.

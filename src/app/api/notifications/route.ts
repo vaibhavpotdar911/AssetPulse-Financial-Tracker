@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { withAuth } from '@/lib/session';
 
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
@@ -76,7 +77,11 @@ export const GET = withAuth(async (request: NextRequest, { user }) => {
       { status: 200 }
     );
   } catch (error: any) {
-    console.error('[API /api/notifications GET] Internal Error:', error);
+    console.error('[API /api/notifications GET] Internal Error:', {
+      name: error?.name,
+      code: error?.code,
+      message: error?.message,
+    });
     return NextResponse.json(
       { error: 'Failed to retrieve notifications.' },
       { status: 500 }
