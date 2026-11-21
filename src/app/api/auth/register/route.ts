@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { prisma, getDatabaseType, getSafeDatabaseHost } from '@/lib/db';
 import {
   hashPassword,
   createSessionToken,
   SESSION_COOKIE_NAME,
   SESSION_COOKIE_OPTIONS,
 } from '@/lib/auth';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -42,10 +45,21 @@ export async function POST(request: NextRequest) {
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedName = typeof name === 'string' && name.trim() ? name.trim() : null;
 
-    // 3. Check for existing user
-    const existingUser = await prisma.user.findUnique({
-      where: { email: normalizedEmail },
-    });
+    // 3. Check for existing user (with retry on transient connection initialization)
+    let existingUser;
+    try {
+      existingUser = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+      });
+    } catch (dbErr: any) {
+      console.warn(
+        `[API /api/auth/register] Initial DB lookup failed (${dbErr?.name || 'Error'}: ${dbErr?.message || 'unknown'}). Retrying once in 500ms...`
+      );
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      existingUser = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+      });
+    }
 
     if (existingUser) {
       return NextResponse.json(
@@ -101,7 +115,16 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch (error: any) {
-    console.error('[API /api/auth/register] Internal Error:', error);
+    console.error('[API /api/auth/register] Internal Error:', {
+      name: error?.name,
+      code: error?.code,
+      clientVersion: error?.clientVersion,
+      message: error?.message,
+      hasDbUrl: Boolean(process.env.DATABASE_URL),
+      dbType: getDatabaseType(),
+      target: getSafeDatabaseHost(),
+    });
+
     return NextResponse.json(
       { error: 'An unexpected error occurred during registration.' },
       { status: 500 }

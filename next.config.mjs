@@ -5,6 +5,9 @@ const nextConfig = {
   images: {
     unoptimized: true, // Guarantees local image rendering without external image optimizer dependencies
   },
+  experimental: {
+    serverComponentsExternalPackages: ['@prisma/client', 'bcryptjs'],
+  },
 };
 
 export default nextConfig;

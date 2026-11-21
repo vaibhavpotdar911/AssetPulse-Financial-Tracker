@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { prisma, getDatabaseType, getSafeDatabaseHost } from '@/lib/db';
 import {
   verifyPassword,
   createSessionToken,
   SESSION_COOKIE_NAME,
   SESSION_COOKIE_OPTIONS,
 } from '@/lib/auth';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 // Standard 10-round bcrypt hash used for constant-time dummy verification on invalid emails
 const DUMMY_BCRYPT_HASH = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
@@ -33,10 +36,22 @@ export async function POST(request: NextRequest) {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    // 1. Find user by email
-    const user = await prisma.user.findUnique({
-      where: { email: normalizedEmail },
-    });
+    // 1. Find user by email (with 1 immediate retry on connection initialization failure)
+    let user;
+    try {
+      user = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+      });
+    } catch (dbErr: any) {
+      console.warn(
+        `[API /api/auth/login] Initial DB query failed (${dbErr?.name || 'Error'}: ${dbErr?.message || 'unknown'}). Retrying once in 500ms...`
+      );
+      // Wait 500ms before retrying in case the connection pool or handshake was initializing
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      user = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+      });
+    }
 
     // 2. Constant-time password verification to prevent timing-based user enumeration
     let isPasswordValid = false;
@@ -81,7 +96,16 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch (error: any) {
-    console.error('[API /api/auth/login] Internal Error:', error);
+    console.error('[API /api/auth/login] Internal Error:', {
+      name: error?.name,
+      code: error?.code,
+      clientVersion: error?.clientVersion,
+      message: error?.message,
+      hasDbUrl: Boolean(process.env.DATABASE_URL),
+      dbType: getDatabaseType(),
+      target: getSafeDatabaseHost(),
+    });
+
     return NextResponse.json(
       { error: 'An unexpected error occurred during login.' },
       { status: 500 }

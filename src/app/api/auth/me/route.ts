@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { prisma, getDatabaseType, getSafeDatabaseHost } from '@/lib/db';
 import { getSessionFromRequest, SESSION_COOKIE_NAME } from '@/lib/auth';
 
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
@@ -59,7 +60,16 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (error: any) {
-    console.error('[API /api/auth/me] Internal Error:', error);
+    console.error('[API /api/auth/me] Internal Error:', {
+      name: error?.name,
+      code: error?.code,
+      clientVersion: error?.clientVersion,
+      message: error?.message,
+      hasDbUrl: Boolean(process.env.DATABASE_URL),
+      dbType: getDatabaseType(),
+      target: getSafeDatabaseHost(),
+    });
+
     return NextResponse.json(
       { error: 'An unexpected error occurred while fetching user profile.' },
       { status: 500 }

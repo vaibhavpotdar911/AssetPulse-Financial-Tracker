@@ -36,23 +36,26 @@ function loadEnv() {
         }
       }
     }
-  } else if (fs.existsSync(ENV_EXAMPLE_FILE)) {
-    console.log('[AssetPulse DB] No .env found. Copying .env.example -> .env');
-    fs.copyFileSync(ENV_EXAMPLE_FILE, ENV_FILE);
-    return loadEnv();
-  } else {
-    console.log('[AssetPulse DB] No .env found. Initializing zero-config SQLite .env');
-    const defaultEnv = [
-      '# AssetPulse Default Configuration',
-      'NODE_ENV=development',
-      'PORT=3000',
-      'DATABASE_URL="file:./fintrack.db"',
-      'DB_TYPE="sqlite"',
-      'JWT_SECRET="assetpulse-super-secret-jwt-key-minimum-32-chars-long"',
-      'NEXTAUTH_SECRET="assetpulse-super-secret-jwt-key-minimum-32-chars-long"',
-    ].join('\n');
-    fs.writeFileSync(ENV_FILE, defaultEnv, 'utf-8');
-    return loadEnv();
+  } else if (!process.env.DATABASE_URL) {
+    // Only initialize fallback .env if environment variables are not already injected by container/orchestrator
+    if (fs.existsSync(ENV_EXAMPLE_FILE)) {
+      console.log('[AssetPulse DB] No .env found and no DATABASE_URL set. Copying .env.example -> .env');
+      fs.copyFileSync(ENV_EXAMPLE_FILE, ENV_FILE);
+      return loadEnv();
+    } else {
+      console.log('[AssetPulse DB] No .env found. Initializing zero-config SQLite .env');
+      const defaultEnv = [
+        '# AssetPulse Default Configuration',
+        'NODE_ENV=development',
+        'PORT=3000',
+        'DATABASE_URL="file:./fintrack.db"',
+        'DB_TYPE="sqlite"',
+        'JWT_SECRET="assetpulse-super-secret-jwt-key-minimum-32-chars-long"',
+        'NEXTAUTH_SECRET="assetpulse-super-secret-jwt-key-minimum-32-chars-long"',
+      ].join('\n');
+      fs.writeFileSync(ENV_FILE, defaultEnv, 'utf-8');
+      return loadEnv();
+    }
   }
 }
 
@@ -72,8 +75,22 @@ if (dbType === 'mysql' || dbUrl.startsWith('mysql://') || dbUrl.startsWith('mysq
   }
 }
 
+function sanitizeUrl(rawUrl) {
+  if (!rawUrl) return 'none';
+  if (rawUrl.startsWith('file:')) return rawUrl;
+  try {
+    if (rawUrl.includes('@')) {
+      const afterAt = rawUrl.split('@')[1];
+      return `mysql://****@${afterAt}`;
+    }
+  } catch {
+    // fallback
+  }
+  return 'external database';
+}
+
 console.log(`[AssetPulse DB] Active dialect: ${targetProvider.toUpperCase()}`);
-console.log(`[AssetPulse DB] Target URL:    ${process.env.DATABASE_URL}`);
+console.log(`[AssetPulse DB] Target:        ${sanitizeUrl(process.env.DATABASE_URL)}`);
 
 // 3. Synchronize prisma/schema.prisma
 if (!fs.existsSync(SCHEMA_FILE)) {

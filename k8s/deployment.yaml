@@ -10,7 +10,10 @@ metadata:
   namespace: assetpulse
 type: Opaque
 stringData:
-  # Replace with your MySQL credentials (URL-encoded password if it has special characters)
+  # Replace with your MySQL credentials.
+  # IMPORTANT: If your password contains special characters like '@', '#', ':', or '/',
+  # they MUST be URL-encoded (e.g. '@' -> '%40', '#' -> '%23', '!' -> '%21').
+  # AssetPulse automatically tunes connect_timeout=30 & pool_timeout=30 if not provided.
   DATABASE_URL: "mysql://username:password@mysql-host-or-ip:3306/fintrack"
   # Generate a 32+ character random string (e.g., openssl rand -hex 32)
   JWT_SECRET: "replace-with-a-very-secure-32-char-random-jwt-secret-key"
