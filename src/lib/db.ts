@@ -54,7 +54,6 @@ export function getSafeDatabaseHost(rawUrl?: string): string {
  * For MySQL over network/k8s:
  * - Appends connect_timeout=30 if not present (Prisma default 5s is too aggressive for WAN/cross-cloud)
  * - Appends pool_timeout=30 if not present (Prisma default 10s can exhaust under connection spikes)
- * - Appends socket_timeout=30 if not present
  */
 export function getTunedDatabaseUrl(rawUrl?: string): string {
   const urlStr = (rawUrl || process.env.DATABASE_URL || '').trim();
@@ -73,15 +72,12 @@ export function getTunedDatabaseUrl(rawUrl?: string): string {
     const queryString = qIdx !== -1 ? urlStr.substring(qIdx + 1) : '';
     const params = new URLSearchParams(queryString);
 
-    // Apply resilient timeouts for cross-network/cloud connections
+    // Apply resilient timeouts for cross-network/cloud connections (Prisma MySQL parameters)
     if (!params.has('connect_timeout')) {
       params.set('connect_timeout', '30');
     }
     if (!params.has('pool_timeout')) {
       params.set('pool_timeout', '30');
-    }
-    if (!params.has('socket_timeout')) {
-      params.set('socket_timeout', '30');
     }
 
     return `${base}?${params.toString()}`;
@@ -91,27 +87,33 @@ export function getTunedDatabaseUrl(rawUrl?: string): string {
 }
 
 /**
- * Instantiates the PrismaClient with tuned connection parameters and logging.
+ * Instantiates the PrismaClient with tuned connection parameters and event-based logging.
  */
 function createPrismaClient(): PrismaClient {
   const tunedUrl = getTunedDatabaseUrl();
 
-  const clientOptions: any = {
-    log:
-      process.env.NODE_ENV === 'development'
-        ? ['warn', 'error']
-        : ['error'],
-  };
-
+  // Keep process.env.DATABASE_URL synchronized with tuned parameters
   if (tunedUrl) {
-    clientOptions.datasources = {
-      db: {
-        url: tunedUrl,
-      },
-    };
+    process.env.DATABASE_URL = tunedUrl;
   }
 
-  return new PrismaClient(clientOptions);
+  const client = new PrismaClient({
+    datasources: tunedUrl ? { db: { url: tunedUrl } } : undefined,
+    log: [
+      { emit: 'event', level: 'error' },
+      { emit: 'event', level: 'warn' },
+    ],
+  });
+
+  // Explicit event listeners ensure error messages are fully formatted and never lost or truncated
+  (client as any).$on('error', (event: any) => {
+    console.error('[AssetPulse Prisma Error]:', event?.message || event);
+  });
+  (client as any).$on('warn', (event: any) => {
+    console.warn('[AssetPulse Prisma Warn]:', event?.message || event);
+  });
+
+  return client;
 }
 
 // Global Singleton Initialization:
