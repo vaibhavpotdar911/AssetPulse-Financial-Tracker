@@ -18,6 +18,8 @@ stringData:
   # Generate a 32+ character random string (e.g., openssl rand -hex 32)
   JWT_SECRET: "replace-with-a-very-secure-32-char-random-jwt-secret-key"
   NEXTAUTH_SECRET: "replace-with-a-very-secure-32-char-random-jwt-secret-key"
+  # Bearer/header token protecting the daily maturity scan endpoint (/api/cron/maturity-check)
+  CRON_SECRET: "replace-with-a-very-secure-32-char-random-jwt-secret-key"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -115,3 +117,58 @@ spec:
                 name: assetpulse-service
                 port:
                   number: 80
+---
+# ==============================================================================
+# Daily Automated Maturity & Notification CronJob
+# Runs cross-tenant maturity checks daily at 04:00 UTC (09:30 AM IST)
+# Dispatches notifications and emails configured in user settings
+# ==============================================================================
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: assetpulse-maturity-cron
+  namespace: assetpulse
+  labels:
+    app: assetpulse-cron
+spec:
+  schedule: "0 4 * * *" # Runs daily at 04:00 AM UTC (adjust to your preferred time)
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app: assetpulse-cron
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: maturity-scanner
+              image: curlimages/curl:8.5.0
+              imagePullPolicy: IfNotPresent
+              command:
+                - /bin/sh
+                - -c
+                - >
+                  echo "[$(date -u)] Initiating AssetPulse daily maturity scan...";
+                  RESPONSE=$(curl -fsS -X POST "http://assetpulse-service.assetpulse.svc.cluster.local/api/cron/maturity-check?secret=${CRON_SECRET}" \
+                    -H "x-cron-secret: ${CRON_SECRET}" \
+                    -H "Authorization: Bearer ${CRON_SECRET}" \
+                    -w "\nHTTP_STATUS:%{http_code}\n");
+                  echo "$RESPONSE";
+                  if echo "$RESPONSE" | grep -q "HTTP_STATUS:200"; then
+                    echo "[$(date -u)] Daily maturity scan and notification dispatch succeeded.";
+                    exit 0;
+                  else
+                    echo "[$(date -u)] Daily maturity scan failed.";
+                    exit 1;
+                  fi
+              env:
+                - name: CRON_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: assetpulse-secret
+                      key: CRON_SECRET
+

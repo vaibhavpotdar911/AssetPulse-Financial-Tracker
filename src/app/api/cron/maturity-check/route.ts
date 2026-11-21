@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { scanAllMaturityAlerts } from '@/lib/notifications';
 import { getSessionFromRequest } from '@/lib/auth';
 
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
